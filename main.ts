@@ -1,137 +1,140 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+//添加交互接口，调用core
+import { Plugin, MarkdownView,Notice,App,PluginSettingTab,Setting} from "obsidian";
+//import { MarkdownIndex } from "./indexFormatter_old";
+import {MySetting ,format_index_for_a_note} from "./core";
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
+const MY_DEFAULT_SETTING: MySetting = {
+    testSetting1: 'test default setting',
+    listIndex:'Increase from 1.',
+    titleIndex:1
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+export default class myPlugin extends Plugin {
+    settings:MySetting
+
+    //加载设置和缺省项
+    async loadSettings() {
+        this.settings = Object.assign({}, MY_DEFAULT_SETTING, await this.loadData());
+    }
+
+    //保存设置和缺省项
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
+
+    //启动时加载
+    async onload() {
+        await this.loadSettings();
+
+        //设置里，添加标签页
+        this.addSettingTab(new MySettingTab(this.app, this));
+
+        //最左侧那一条菜单，添加图标
+        this.addRibbonIcon('dice', 'Format this note', (evt: MouseEvent) => {
+            const markdownView =this.app.workspace.getActiveViewOfType(MarkdownView);
+            if(markdownView){
+                format_index_for_a_note(markdownView,this.settings);
+            }
+        });
+
+        //添加命令
+        this.addCommand({
+            id: "obsidian-index-formatting-format_this_note",
+            name: "Format this note",
+            checkCallback: (checking: boolean) => {
+                const markdownView =this.app.workspace.getActiveViewOfType(MarkdownView);
+                if (!markdownView) {
+                    return false;
+                }
+                else{
+                    if (!checking) {
+                        format_index_for_a_note(markdownView,this.settings);
+                    }
+                    return true;
+                }
+            },
+        });
+
+        this.registerEvent(
+            this.app.workspace.on("editor-menu", (menu, editor, view) => {
+                console.log("在编辑器点击右键菜单")
+                const cursor = editor.getCursor();
+                if(/^#+ .*/.test(editor.getLine(cursor.line))){
+                    menu.addItem((item) => {
+                        item
+                            .setTitle("Print file path 👈")
+                            .setIcon("document")
+                            .onClick(async () => {
+                                new Notice("AAAAAAAAA");
+                            });
+                    });
+                }
+            })
+        );
+    }
+
+    
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+//添加设置tab
+class MySettingTab extends PluginSettingTab {
+    plugin: myPlugin;
+    constructor(app: App, plugin: myPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+    display(): void {
+        //获取标签页对应的容器
+        const {containerEl} = this;
+        containerEl.empty();
 
-	async onload() {
-		await this.loadSettings();
+        //添加设置项
+        new Setting(containerEl)
+            .setName('name')
+            .setDesc('desc')
+            //.setTooltip('tooltip')
+            .addText(text => text
+                .setPlaceholder('place holder')
+                .setValue(this.plugin.settings.testSetting1)
+                .onChange(async (value) => {
+                    console.log('Secret: ' + value);
+                    this.plugin.settings.testSetting1 = value;
+                    await this.plugin.saveSettings();
+                }));
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-	}
-
-	onunload() {
-
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
+        new Setting(containerEl)
+            .setName('Format Ordered List Index')
+            .addDropdown(Dropdown => Dropdown
+                .addOptions({
+                    'Disabled':'Disabled',
+                    'Increase from 1.':'Increase from 1.',
+                    'Increase from any':'Increase from any',
+                    'Always 1.':'Always 1.',
+                })
+                .setValue(this.plugin.settings.listIndex)
+                .onChange(async (value) => {
+                    this.plugin.settings.listIndex = value;                    
+                    await this.plugin.saveSettings();
+                })
+            )
+                    
+        new Setting(containerEl)
+            .setName('Add index to titles ')
+            .addDropdown(Dropdown => Dropdown
+                .addOptions({
+                    6:'Disabled',
+                    0:'All Levels',
+                    1:'Level 2 and below',
+                    2:'Level 3 and below',
+                    3:'Level 4 and below',
+                    4:'Level 5 and below',
+                    5:'Level 6',
+                })
+                .setValue(String(this.plugin.settings.titleIndex))
+                .onChange(async (value) => {
+                    this.plugin.settings.titleIndex = Number(value)
+                    await this.plugin.saveSettings();
+                })
+            )
+    }
 }
