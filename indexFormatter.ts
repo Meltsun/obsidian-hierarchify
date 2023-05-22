@@ -7,12 +7,12 @@ interface formattingOptions{
 }
 
 function clearIndexRecord():Array<number>{
-    let array:number[]=[0,0,0,0,0,0,]
+    const array:number[]=[0,0,0,0,0,0,]
     return array
 }
 
 export function format_index(content: string[],options:formattingOptions={} ){
-    let {
+    const {
         addTitleIndexFrom = 6,//为#数量大于等于此值的标题添加序号
         listIndexHandleMethod = 'Disabled'//列表序号的修改方法，直接使用设置里相应选项的字符串
     }=options;
@@ -24,7 +24,7 @@ export function format_index(content: string[],options:formattingOptions={} ){
     let isCodeBlock=false;
 
     //记录当前位置的标题和列表的等级
-    let titleIndexes=clearIndexRecord();
+    const titleIndexes=clearIndexRecord();
     let listIndexes=clearIndexRecord();
     
     //用于判断列表序号中断
@@ -40,8 +40,7 @@ export function format_index(content: string[],options:formattingOptions={} ){
         }
 
         //代码块内部，跳过
-        else if(isCodeBlock){
-        }
+        else if(isCodeBlock){ /* empty */ }
 
         //表格，分割线，清空列表，跳过
         else if(/^\|? *-[ -]*\|( *-[ -]*\|)*( *-[ -]*)?/.test(line) || /^ *---+ *$/.test(line)){
@@ -55,7 +54,7 @@ export function format_index(content: string[],options:formattingOptions={} ){
 
             //计算当前行的标题等级，即#数量，不考虑6个#以上
             let level=0;
-            for(let char of line){
+            for(const char of line){
                 if(char=='#'){
                     level++;
                     if(level==6){
@@ -84,8 +83,7 @@ export function format_index(content: string[],options:formattingOptions={} ){
         //有序列表
         else if(/^\t*[0-9]+\. /.test(line)){
             //不修改
-            if(listIndexHandleMethod=='Disabled'){
-            }
+            if(listIndexHandleMethod=='Disabled'){ /* empty */ }
             //都改成1
             else if(listIndexHandleMethod=='Always 1.'){
                 content[lineIndex]=line.replace(/(?<=^\t*)[0-9]+\. +/,'1. ')
@@ -98,7 +96,7 @@ export function format_index(content: string[],options:formattingOptions={} ){
 
                 // 计算当前行的列表等级
                 let level=1
-                for(let char of line){
+                for(const char of line){
                     if(char=='\t'){
                         level++;
                         if(level==6){
@@ -112,8 +110,10 @@ export function format_index(content: string[],options:formattingOptions={} ){
 
                 //如果允许序号从任意值开始，记录一个列表的第一个序号
                 if(listIndexes[level-1]==0 && listIndexHandleMethod=='Increase from any'){
-                    let index=line.match(/[0-9]+/)[0];
-                    listIndexes[level-1]=Number(index);
+                    const index=line.match(/[0-9]+/);
+                    if(index){
+                        listIndexes[level-1]=Number(index[0]);
+                    }
                 }//如果序号从1开始，或者当前不是一个列表的第一个需要
                 else{
                     listIndexes[level-1]++;//this level`s index +1

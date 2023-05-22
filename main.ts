@@ -1,12 +1,12 @@
 //添加交互接口，调用core
 import { Plugin, MarkdownView,Notice,App,PluginSettingTab,Setting} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
-import {MySetting ,format_index_for_a_note} from "./core";
+import {MySetting ,format_index_for_a_note , HeadingDepth} from "./core";
 
 const MY_DEFAULT_SETTING: MySetting = {
     testSetting1: 'test default setting',
-    listIndex:'Increase from 1.',
-    titleIndex:1
+    listIndexHandleMethod:'Increase from 1' as 'Increase from 1'|'Increase from Any',
+    addHeadingIndexFrom:1
 }
 
 export default class myPlugin extends Plugin {
@@ -106,14 +106,12 @@ class MySettingTab extends PluginSettingTab {
             .setName('Format Ordered List Index')
             .addDropdown(Dropdown => Dropdown
                 .addOptions({
-                    'Disabled':'Disabled',
-                    'Increase from 1.':'Increase from 1.',
+                    'Increase from 1':'Increase from 1',
                     'Increase from any':'Increase from any',
-                    'Always 1.':'Always 1.',
                 })
-                .setValue(this.plugin.settings.listIndex)
+                .setValue(this.plugin.settings.listIndexHandleMethod)
                 .onChange(async (value) => {
-                    this.plugin.settings.listIndex = value;                    
+                    this.plugin.settings.listIndexHandleMethod = value;                    
                     await this.plugin.saveSettings();
                 })
             )
@@ -122,17 +120,17 @@ class MySettingTab extends PluginSettingTab {
             .setName('Add index to titles ')
             .addDropdown(Dropdown => Dropdown
                 .addOptions({
-                    6:'Disabled',
-                    0:'All Levels',
-                    1:'Level 2 and below',
-                    2:'Level 3 and below',
-                    3:'Level 4 and below',
-                    4:'Level 5 and below',
-                    5:'Level 6',
+                    7:'Disabled',
+                    1:'All Levels',
+                    2:'Level 2 and below',
+                    3:'Level 3 and below',
+                    4:'Level 4 and below',
+                    5:'Level 5 and below',
+                    6:'Level 6',
                 })
-                .setValue(String(this.plugin.settings.titleIndex))
+                .setValue(String(this.plugin.settings.addHeadingIndexFrom))
                 .onChange(async (value) => {
-                    this.plugin.settings.titleIndex = Number(value)
+                    this.plugin.settings.addHeadingIndexFrom = Number(value) as 7 | HeadingDepth
                     await this.plugin.saveSettings();
                 })
             )
