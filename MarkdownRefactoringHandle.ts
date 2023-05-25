@@ -1,7 +1,8 @@
 import {Root,Heading,List,Text,Content,ListItem,Paragraph,} from 'mdast';
 import {fromMarkdown} from 'mdast-util-from-markdown'
-import { toMarkdown } from 'mdast-util-to-markdown';
-import { Join } from 'mdast-util-to-markdown/lib';
+import { toMarkdown} from 'mdast-util-to-markdown';
+import { Node } from 'unist';
+
 
 export type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -17,7 +18,7 @@ function isHeading(node: Content ):node is Heading{
     return node?.type === 'heading';
 }
 
-function isList(node: Content): node is List{
+function isList(node: Node): node is List{
     return node?.type === 'list';
 }
 
@@ -91,7 +92,7 @@ export class MarkdownRefactoringHandle{
         return this;
     }
 
-    heading_to_list(headingIndex:number,modifyPeerHeadings:boolean,onlyModifyBelowPeerHeadings=false){
+    private heading_to_list(headingIndex:number,modifyPeerHeadings:boolean,onlyModifyBelowPeerHeadings=false){
         new heading_to_list_recursive_handle(headingIndex,this.allNodes,modifyPeerHeadings,onlyModifyBelowPeerHeadings)
     }
 
@@ -163,7 +164,10 @@ export class MarkdownRefactoringHandle{
         return this;
     }
 
-    public format_index(options:indexFormattingOptions={}){
+    public format_index(options:{
+                            addHeadingIndexFrom?:HeadingDepth|7;
+                            listIndexHandleMethod?:string;
+                        }={}){
         const {
             addHeadingIndexFrom: addHeadingIndexFrom = 6 as HeadingDepth,//为#数量大于等于此值的标题添加序号
             listIndexHandleMethod = 'Disabled'//列表序号的修改方法，直接使用设置里相应选项的字符串
@@ -187,18 +191,14 @@ export class MarkdownRefactoringHandle{
     }
 
     public stringify():string{
-        const join:Join = function(left,right,parents,state){
-            return undefined;// TODO:
-        }
+        //const join:Join = function(left,right,parents,state){
+        //    return undefined;// TODO:
+        //}
 
-        return toMarkdown(this.root,{bullet:'-',join:[join]})
+        return toMarkdown(this.root,{bullet:'-',listItemIndent:'one'})
     }
 }
 
-interface indexFormattingOptions{
-    addHeadingIndexFrom?:HeadingDepth|7;
-    listIndexHandleMethod?:string;
-}
 
 class HeadingIndexHandle{
     public headingIndex=[0, 0, 0, 0, 0, 0, 0] as unknown as HeadingDepth[];
@@ -216,27 +216,26 @@ class HeadingIndexHandle{
         for(let j=headingNode.depth+1;j<this.headingIndex.length;j++){
             this.headingIndex[j]=0 as HeadingDepth; 
         }
-        if(isHeadingDepth(this.addHeadingIndexFrom)){
-            for(const childNode of headingNode.children){
-                if(!isText(childNode)){
-                    continue;
-                }
-                let indexText='';
-                let start:HeadingDepth;
-                if(this.minHeadingDepth!=undefined && this.minHeadingDepth>this.addHeadingIndexFrom){
-                    start=this.minHeadingDepth;
-                }
-                else{
-                    start=this.addHeadingIndexFrom;
-                }
-                for(let j=start;j<=headingNode.depth;j++){
-                    indexText=indexText+this.headingIndex[j]+'.';
-                }
-                if(indexText!==''){
-                    childNode.value=childNode.value.replace(/([0-9]+\.)* */,indexText.trimEnd()+' ');
-                }
-                break;
+        for(const childNode of headingNode.children){
+            if(!isText(childNode)){
+                continue;
             }
+            let indexText='';
+            let start;
+            if(this.minHeadingDepth!=undefined && this.minHeadingDepth>this.addHeadingIndexFrom){
+                start=this.minHeadingDepth;
+            }
+            else{
+                start=this.addHeadingIndexFrom;
+            }
+            for(let j=start;j<=headingNode.depth;j++){
+                indexText=indexText+this.headingIndex[j]+'.';
+            }
+            if(indexText!==''){
+                indexText+=' '
+            }
+            childNode.value=childNode.value.replace(/([0-9]+\.)* */,indexText);
+            break;
         }
     }
 }
@@ -324,8 +323,9 @@ class heading_to_list_recursive_handle{
 
     heading_to_list_recursive(index:number,parent:ListItem[]):number{
         const lastHeading = this.allNodes[index] as Heading;
-        for(const textOfHeading of lastHeading.children){
-            if(isText(textOfHeading)){
+        for(const textNodeOfHeading of lastHeading.children){
+            if(isText(textNodeOfHeading)){
+                const headingText = textNodeOfHeading.value.replace(/([0-9]+\.)* */,'');
                 const newList={
                         type: 'list',
                         ordered: true,
@@ -342,7 +342,7 @@ class heading_to_list_recursive_handle{
                             children: [
                                 {
                                     type:'text',
-                                    value: textOfHeading.value,
+                                    value: headingText,
                                 } as Text
                             ]
                         } as Paragraph,
@@ -351,6 +351,7 @@ class heading_to_list_recursive_handle{
                 parent=newList.children;
                 this.deleteCount++;
                 index++;
+                let listIndex = 1;
                 for(;index<this.allNodes.length;index++){
                     const thisNode = this.allNodes[index];
                     if(isHeading(thisNode)){
@@ -381,13 +382,14 @@ class heading_to_list_recursive_handle{
                                     children: [
                                         {
                                             type:'text',
-                                            value: '',
+                                            value: headingText+`-list${listIndex}`,
                                         } as Text
                                     ]
                                 } as Paragraph,
                                 thisNode
                             ]}as ListItem);
                         this.deleteCount++;
+                        listIndex++;
                     }
                     else{
                         this.tail.push(thisNode)

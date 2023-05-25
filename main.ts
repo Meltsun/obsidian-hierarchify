@@ -1,7 +1,7 @@
 //添加交互接口，调用core
-import { Plugin, MarkdownView,Notice,App,PluginSettingTab,Setting} from "obsidian";
+import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
-import {MySetting ,format_index_for_a_note , HeadingDepth} from "./core";
+import {MySetting ,format_index_for_a_note , HeadingDepth,heading_to_list} from "./core";
 
 const MY_DEFAULT_SETTING: MySetting = {
     testSetting1: 'test default setting',
@@ -25,7 +25,6 @@ export default class myPlugin extends Plugin {
     //启动时加载
     async onload() {
         await this.loadSettings();
-
         //设置里，添加标签页
         this.addSettingTab(new MySettingTab(this.app, this));
 
@@ -55,19 +54,62 @@ export default class myPlugin extends Plugin {
             },
         });
 
+        //编辑栏右键菜单
         this.registerEvent(
             this.app.workspace.on("editor-menu", (menu, editor, view) => {
-                console.log("在编辑器点击右键菜单")
                 const cursor = editor.getCursor();
+                const line = editor.getLine(cursor.line)
+                const markdownView =this.app.workspace.getActiveViewOfType(MarkdownView);
+                if(line==null || !/^#+ .*/.test(line) || !markdownView){
+                    return;
+                }
+                console.log("在标题点击右键菜单：%d",cursor.line)
+                const match = line.match(/^#+/)
+                const depth = match?match[0].length:0;
                 if(/^#+ .*/.test(editor.getLine(cursor.line))){
-                    menu.addItem((item) => {
-                        item
-                            .setTitle("Print file path 👈")
-                            .setIcon("document")
-                            .onClick(async () => {
-                                new Notice("AAAAAAAAA");
-                            });
-                    });
+                    menu
+                        .addSeparator()
+                        .addItem((item) => {
+                            item
+                                .setTitle("将此标题重构为...")
+                                .setIcon("document")
+                                .onClick((event) => {
+                                    if((event as MouseEvent).x && (event as MouseEvent).y){
+                                        const mouseEvent = event as MouseEvent;
+                                        //调整标题级别菜单
+                                        const headingModifyMenu = new Menu();
+                                        headingModifyMenu.addItem((item)=>{
+                                            item
+                                                .setTitle("取消")
+                                        })
+                                        headingModifyMenu.addSeparator()
+                                        for(let i=1;i<=6;i++){
+                                            if(i==depth){
+                                                headingModifyMenu.addItem((item)=>{
+                                                    item
+                                                        .setTitle(`H${i} (now)`)
+                                                })
+                                            }
+                                            else{
+                                                headingModifyMenu.addItem((item)=>{
+                                                    item
+                                                        .setTitle(`H${i}`)
+                                            })
+                                            }
+                                        }
+                                        headingModifyMenu.addSeparator()
+                                        headingModifyMenu.addItem((item)=>{
+                                            item
+                                                .setTitle(`List`)
+                                                .setIcon('list')
+                                                .onClick(()=>{
+                                                    heading_to_list(markdownView,cursor.line,false)
+                                                })
+                                        })
+                                        headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
+                                    }
+                                });
+                        });
                 }
             })
         );
