@@ -1,38 +1,42 @@
 //添加交互接口，调用core
 import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
-import {MySetting ,format_index_for_a_note , HeadingDepth,heading_to_list} from "./core";
-
-const MY_DEFAULT_SETTING: MySetting = {
-    testSetting1: 'test default setting',
-    listIndexHandleMethod:'Increase from 1' as 'Increase from 1'|'Increase from Any',
-    addHeadingIndexFrom:1
-}
+import {CoreHandle,MySettings,HeadingDepth} from "./core";
 
 export default class myPlugin extends Plugin {
-    settings:MySetting
+    handle:CoreHandle
 
     //加载设置和缺省项
-    async loadSettings() {
-        this.settings = Object.assign({}, MY_DEFAULT_SETTING, await this.loadData());
+    async load_settings() {
+        this.handle.set_settings(await this.loadData());
     }
 
     //保存设置和缺省项
-    async saveSettings() {
-        await this.saveData(this.settings);
+    private async save_settings() {
+        await this.saveData(this.handle.get_settings);
+    }
+    
+    public async set_settings(settings:Partial<MySettings>){
+        this.handle.set_settings(settings);
+        await this.save_settings();
+    }
+
+    public get_settings(){
+        return this.handle.get_settings()
     }
 
     //启动时加载
     async onload() {
-        await this.loadSettings();
+        this.handle=new CoreHandle();
+        await this.load_settings();
         //设置里，添加标签页
-        this.addSettingTab(new MySettingTab(this.app, this));
+        this.addSettingTab(new MySettingTab(this.app, this,this.handle));
 
         //最左侧那一条菜单，添加图标
         this.addRibbonIcon('dice', 'Format this note', (evt: MouseEvent) => {
             const markdownView =this.app.workspace.getActiveViewOfType(MarkdownView);
             if(markdownView){
-                format_index_for_a_note(markdownView,this.settings);
+                this.handle.format_index_for_a_note(markdownView);
             }
         });
 
@@ -47,7 +51,7 @@ export default class myPlugin extends Plugin {
                 }
                 else{
                     if (!checking) {
-                        format_index_for_a_note(markdownView,this.settings);
+                        this.handle.format_index_for_a_note(markdownView);
                     }
                     return true;
                 }
@@ -103,7 +107,7 @@ export default class myPlugin extends Plugin {
                                                 .setTitle(`List`)
                                                 .setIcon('list')
                                                 .onClick(()=>{
-                                                    heading_to_list(markdownView,cursor.line,false)
+                                                    this.handle.heading_to_list(markdownView,cursor.line,false)
                                                 })
                                         })
                                         headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
@@ -120,10 +124,8 @@ export default class myPlugin extends Plugin {
 
 //添加设置tab
 class MySettingTab extends PluginSettingTab {
-    plugin: myPlugin;
-    constructor(app: App, plugin: myPlugin) {
+    constructor(app: App, private plugin: myPlugin,private handle:CoreHandle) {
         super(app, plugin);
-        this.plugin = plugin;
     }
     display(): void {
         //获取标签页对应的容器
@@ -137,11 +139,9 @@ class MySettingTab extends PluginSettingTab {
             //.setTooltip('tooltip')
             .addText(text => text
                 .setPlaceholder('place holder')
-                .setValue(this.plugin.settings.testSetting1)
+                .setValue(this.plugin.get_settings().testSetting1)
                 .onChange(async (value) => {
-                    console.log('Secret: ' + value);
-                    this.plugin.settings.testSetting1 = value;
-                    await this.plugin.saveSettings();
+                    this.plugin.set_settings({testSetting1:value});
                 }));
 
         new Setting(containerEl)
@@ -151,10 +151,9 @@ class MySettingTab extends PluginSettingTab {
                     'Increase from 1':'Increase from 1',
                     'Increase from any':'Increase from any',
                 })
-                .setValue(this.plugin.settings.listIndexHandleMethod)
+                .setValue(this.plugin.get_settings().listIndexHandleMethod as string)
                 .onChange(async (value) => {
-                    this.plugin.settings.listIndexHandleMethod = value;                    
-                    await this.plugin.saveSettings();
+                    this.plugin.set_settings({listIndexHandleMethod:value});                   
                 })
             )
                     
@@ -170,10 +169,9 @@ class MySettingTab extends PluginSettingTab {
                     5:'Level 5 and below',
                     6:'Level 6',
                 })
-                .setValue(String(this.plugin.settings.addHeadingIndexFrom))
+                .setValue(String(this.plugin.get_settings().addHeadingIndexFrom))
                 .onChange(async (value) => {
-                    this.plugin.settings.addHeadingIndexFrom = Number(value) as 7 | HeadingDepth
-                    await this.plugin.saveSettings();
+                    this.plugin.set_settings({addHeadingIndexFrom:Number(value) as 7 | HeadingDepth})
                 })
             )
     }
