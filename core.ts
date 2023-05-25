@@ -1,4 +1,4 @@
-import {MarkdownView} from "obsidian";
+import {MarkdownView,Notice} from "obsidian";
 import {MarkdownRefactoringHandle,HeadingDepth} from "MarkdownRefactoringHandle"
 export type { HeadingDepth };
 
@@ -40,7 +40,7 @@ export class CoreHandle{
         //format_index(lines,{addTitleIndexFrom:settings.titleIndex, listIndexHandleMethod:settings.listIndex});
         editor.setValue(text);
         editor.setCursor(cursor);
-        console.log("reflactor:序号格式化")
+        new Notice("reflactor:序号格式化")
     }
 
     //将一个标题转为列表
@@ -58,7 +58,7 @@ export class CoreHandle{
                 .stringify()
         editor.setValue(text);
         editor.setCursor(cursor);
-        console.log("reflactor:标题转列表")
+        new Notice("reflactor:标题转列表")
     }
 
     //将一个列表转为标题
@@ -76,7 +76,7 @@ export class CoreHandle{
                 .stringify()
         editor.setValue(text);
         editor.setCursor(cursor);
-        console.log("reflactor:列表转标题")
+        new Notice("reflactor:列表转标题")
     }
 
 }

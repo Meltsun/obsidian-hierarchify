@@ -64,56 +64,58 @@ export default class myPlugin extends Plugin {
                 const cursor = editor.getCursor();
                 const line = editor.getLine(cursor.line)
                 const markdownView =this.app.workspace.getActiveViewOfType(MarkdownView);
-                if(line==null || !/^#+ .*/.test(line) || !markdownView){
+                if(line==null || !markdownView){
                     return;
                 }
-                console.log("在标题点击右键菜单：%d",cursor.line)
-                const match = line.match(/^#+/)
-                const depth = match?match[0].length:0;
-                if(/^#+ .*/.test(editor.getLine(cursor.line))){
-                    menu
-                        .addSeparator()
-                        .addItem((item) => {
-                            item
-                                .setTitle("将此标题重构为...")
-                                .setIcon("document")
-                                .onClick((event) => {
-                                    if((event as MouseEvent).x && (event as MouseEvent).y){
-                                        const mouseEvent = event as MouseEvent;
-                                        //调整标题级别菜单
-                                        const headingModifyMenu = new Menu();
-                                        headingModifyMenu.addItem((item)=>{
-                                            item
-                                                .setTitle("取消")
-                                        })
-                                        headingModifyMenu.addSeparator()
-                                        for(let i=1;i<=6;i++){
-                                            if(i==depth){
-                                                headingModifyMenu.addItem((item)=>{
-                                                    item
-                                                        .setTitle(`H${i} (now)`)
-                                                })
-                                            }
-                                            else{
-                                                headingModifyMenu.addItem((item)=>{
-                                                    item
-                                                        .setTitle(`H${i}`)
+                if(/^#+ .*/.test(line)){
+                    console.log("在标题点击右键菜单：%d",cursor.line)
+                    const match = line.match(/^#+/)
+                    const depth = match?match[0].length:0;
+                    if(/^#+ .*/.test(editor.getLine(cursor.line))){
+                        menu
+                            .addSeparator()
+                            .addItem((item) => {
+                                item
+                                    .setTitle("将此标题重构为...")
+                                    .setIcon("document")
+                                    .onClick((event) => {
+                                        if((event as MouseEvent).x && (event as MouseEvent).y){
+                                            const mouseEvent = event as MouseEvent;
+                                            //调整标题级别菜单
+                                            const headingModifyMenu = new Menu();
+                                            headingModifyMenu.addItem((item)=>{
+                                                item
+                                                    .setTitle("取消")
                                             })
-                                            }
-                                        }
-                                        headingModifyMenu.addSeparator()
-                                        headingModifyMenu.addItem((item)=>{
-                                            item
-                                                .setTitle(`List`)
-                                                .setIcon('list')
-                                                .onClick(()=>{
-                                                    this.handle.heading_to_list(markdownView,cursor.line,false)
+                                            headingModifyMenu.addSeparator()
+                                            for(let i=1;i<=6;i++){
+                                                if(i==depth){
+                                                    headingModifyMenu.addItem((item)=>{
+                                                        item
+                                                            .setTitle(`H${i} (now)`)
+                                                    })
+                                                }
+                                                else{
+                                                    headingModifyMenu.addItem((item)=>{
+                                                        item
+                                                            .setTitle(`H${i}`)
                                                 })
-                                        })
-                                        headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
-                                    }
-                                });
-                        });
+                                                }
+                                            }
+                                            headingModifyMenu.addSeparator()
+                                            headingModifyMenu.addItem((item)=>{
+                                                item
+                                                    .setTitle(`List`)
+                                                    .setIcon('list')
+                                                    .onClick(()=>{
+                                                        this.handle.heading_to_list(markdownView,cursor.line,false)
+                                                    })
+                                            })
+                                            headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
+                                        }
+                                    });
+                            });
+                    }
                 }
             })
         );
