@@ -43,7 +43,6 @@ export class CoreHandle{
         new Notice("reflactor:序号格式化")
     }
 
-    //将一个标题转为列表
     public heading_to_list(markdownView:MarkdownView,line:number,modifyPeerHeadings:boolean){
         const editor = markdownView.editor;
         const cursor = editor.getCursor();
@@ -61,7 +60,6 @@ export class CoreHandle{
         new Notice("reflactor:标题转列表")
     }
 
-    //将一个列表转为标题
     public list_to_heading(markdownView:MarkdownView,line:number){
         const editor = markdownView.editor;
         const cursor = editor.getCursor();
@@ -95,4 +93,17 @@ export class CoreHandle{
         editor.setCursor(cursor);
         new Notice("reflactor:列表转标题")
     }
+    
+    public heading_to_note(){
+        //TODO:
+    }
+
+    public folder_to_note(){
+        //TODO:
+    }
+
+    public add_links_based_on_file_tree(){
+        //TODO:
+    }
+
 }
