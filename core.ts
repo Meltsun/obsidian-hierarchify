@@ -79,4 +79,20 @@ export class CoreHandle{
         new Notice("reflactor:列表转标题")
     }
 
+    public heading_to_heading(markdownView:MarkdownView,line:number,newDepth:HeadingDepth,modifyPeerHeadings:boolean){
+        const editor = markdownView.editor;
+        const cursor = editor.getCursor();
+        let text = editor.getValue();
+        const handle=new MarkdownRefactoringHandle(text)
+        text = handle
+                .heading_to_heading_by_line(line+1,newDepth,modifyPeerHeadings)
+                .format_index({
+                    addHeadingIndexFrom:this.settings.addHeadingIndexFrom,
+                    listIndexHandleMethod:this.settings.listIndexHandleMethod
+                })
+                .stringify()
+        editor.setValue(text);
+        editor.setCursor(cursor);
+        new Notice("reflactor:列表转标题")
+    }
 }

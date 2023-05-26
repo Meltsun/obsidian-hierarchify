@@ -133,7 +133,7 @@ export default class myPlugin extends Plugin {
                                 .setTitle("取消")
                         })
                         headingModifyMenu.addSeparator()
-                        for(let i=1;i<=6;i++){
+                        for(let i=1 as HeadingDepth;i<=6;i++){
                             if(i==depth){
                                 headingModifyMenu.addItem((item)=>{
                                     item
@@ -144,7 +144,10 @@ export default class myPlugin extends Plugin {
                                 headingModifyMenu.addItem((item)=>{
                                     item
                                         .setTitle(`H${i}`)
-                            })
+                                        .onClick(()=>{
+                                            this.handle.heading_to_heading(markdownView,lineIndex,i,modifyPeerHeadings)
+                                        })
+                                })
                             }
                         }
                         headingModifyMenu.addSeparator()
