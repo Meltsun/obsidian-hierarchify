@@ -62,15 +62,13 @@ export default class myPlugin extends Plugin {
         this.registerEvent(
             this.app.workspace.on("editor-menu", (menu, editor, view) => {
                 const cursor = editor.getCursor();
-                const line = editor.getLine(cursor.line)
+                const lineString = editor.getLine(cursor.line)
                 const markdownView =this.app.workspace.getActiveViewOfType(MarkdownView);
-                if(line==null || !markdownView){
+                if(lineString==null || !markdownView){
                     return;
                 }
-                if(/^#+ .*/.test(line)){
+                if(/^#+ .*/.test(lineString)){
                     console.log("在标题点击右键菜单：%d",cursor.line)
-                    const match = line.match(/^#+/)
-                    const depth = match?match[0].length:0;
                     if(/^#+ .*/.test(editor.getLine(cursor.line))){
                         menu
                             .addSeparator()
@@ -78,49 +76,90 @@ export default class myPlugin extends Plugin {
                                 item
                                     .setTitle("将此标题重构为...")
                                     .setIcon("document")
-                                    .onClick((event) => {
-                                        if((event as MouseEvent).x && (event as MouseEvent).y){
-                                            const mouseEvent = event as MouseEvent;
-                                            //调整标题级别菜单
-                                            const headingModifyMenu = new Menu();
-                                            headingModifyMenu.addItem((item)=>{
+                                    .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,false))
+                            })
+                            .addItem((item) => {
+                                item
+                                    .setTitle("将所有同级别标题重构为...")
+                                    .setIcon("document")
+                                    .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,true))
+                            })
+                    }
+                }
+                else if(/^(\t*|( {4})*)[0-9]+\. .*/.test(lineString)){
+                    menu
+                        .addSeparator()
+                        .addItem((item) => {
+                            item
+                                .setTitle("将此列表重构为...")
+                                .setIcon("document")
+                                .onClick((event) => {
+                                    if((event as MouseEvent).x && (event as MouseEvent).y){
+                                        const mouseEvent = event as MouseEvent;
+                                        //调整标题级别菜单
+                                        const headingModifyMenu = new Menu();
+                                        headingModifyMenu
+                                            .addItem((item)=>{
                                                 item
                                                     .setTitle("取消")
                                             })
-                                            headingModifyMenu.addSeparator()
-                                            for(let i=1;i<=6;i++){
-                                                if(i==depth){
-                                                    headingModifyMenu.addItem((item)=>{
-                                                        item
-                                                            .setTitle(`H${i} (now)`)
-                                                    })
-                                                }
-                                                else{
-                                                    headingModifyMenu.addItem((item)=>{
-                                                        item
-                                                            .setTitle(`H${i}`)
-                                                })
-                                                }
-                                            }
-                                            headingModifyMenu.addSeparator()
-                                            headingModifyMenu.addItem((item)=>{
+                                            .addSeparator()
+                                            .addItem((item)=>{
                                                 item
-                                                    .setTitle(`List`)
-                                                    .setIcon('list')
+                                                    .setTitle("标题")
                                                     .onClick(()=>{
-                                                        this.handle.heading_to_list(markdownView,cursor.line,false)
+                                                        this.handle.list_to_heading(markdownView,cursor.line)
                                                     })
                                             })
-                                            headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
-                                        }
-                                    });
-                            });
-                    }
+                                            .showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
+                                    }
+                                });
+                        });
                 }
             })
         );
     }
 
+    make_heading_content_menuitem_callback(markdownView: MarkdownView,lineIndex:number,line:string,modifyPeerHeadings:boolean){
+        const match = line.match(/^#+/)
+        const depth = match?match[0].length:0;
+        return (event:MouseEvent) => {
+                    if((event as MouseEvent).x && (event as MouseEvent).y){
+                        const mouseEvent = event as MouseEvent;
+                        //调整标题级别菜单
+                        const headingModifyMenu = new Menu();
+                        headingModifyMenu.addItem((item)=>{
+                            item
+                                .setTitle("取消")
+                        })
+                        headingModifyMenu.addSeparator()
+                        for(let i=1;i<=6;i++){
+                            if(i==depth){
+                                headingModifyMenu.addItem((item)=>{
+                                    item
+                                        .setTitle(`H${i} (now)`)
+                                })
+                            }
+                            else{
+                                headingModifyMenu.addItem((item)=>{
+                                    item
+                                        .setTitle(`H${i}`)
+                            })
+                            }
+                        }
+                        headingModifyMenu.addSeparator()
+                        headingModifyMenu.addItem((item)=>{
+                            item
+                                .setTitle(`List`)
+                                .setIcon('list')
+                                .onClick(()=>{
+                                    this.handle.heading_to_list(markdownView,lineIndex,modifyPeerHeadings)
+                                })
+                        })
+                        headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
+                    }
+        }
+    }
     
 }
 
