@@ -27,7 +27,7 @@ export default class myPlugin extends Plugin {
 
     //启动时加载
     async onload() {
-        this.handle=new CoreHandle();
+        this.handle=new CoreHandle(this.app.vault);
         await this.load_settings();
         //设置里，添加标签页
         this.addSettingTab(new MySettingTab(this.app, this,this.handle));
@@ -87,6 +87,7 @@ export default class myPlugin extends Plugin {
                     }
                 }
                 else if(/^(\t*|( {4})*)[0-9]+\. .*/.test(lineString)){
+                    console.log("在标题点击右键菜单：%d",cursor.line)
                     menu
                         .addSeparator()
                         .addItem((item) => {
@@ -128,11 +129,12 @@ export default class myPlugin extends Plugin {
                         const mouseEvent = event as MouseEvent;
                         //调整标题级别菜单
                         const headingModifyMenu = new Menu();
-                        headingModifyMenu.addItem((item)=>{
-                            item
-                                .setTitle("取消")
-                        })
-                        headingModifyMenu.addSeparator()
+                        headingModifyMenu
+                            .addItem((item)=>{
+                                item
+                                    .setTitle("取消")
+                            })
+                            .addSeparator()
                         for(let i=1 as HeadingDepth;i<=6;i++){
                             if(i==depth){
                                 headingModifyMenu.addItem((item)=>{
@@ -150,16 +152,26 @@ export default class myPlugin extends Plugin {
                                 })
                             }
                         }
-                        headingModifyMenu.addSeparator()
-                        headingModifyMenu.addItem((item)=>{
-                            item
-                                .setTitle(`List`)
-                                .setIcon('list')
-                                .onClick(()=>{
-                                    this.handle.heading_to_list(markdownView,lineIndex,modifyPeerHeadings)
+                        headingModifyMenu
+                                .addSeparator()
+                                .addItem((item)=>{//转化为列表
+                                    item
+                                        .setTitle(`List`)
+                                        .setIcon('list')
+                                        .onClick(()=>{
+                                            this.handle.heading_to_list(markdownView,lineIndex,modifyPeerHeadings)
+                                        })
                                 })
-                        })
-                        headingModifyMenu.showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
+                                .addSeparator()
+                                .addItem((item)=>{//转化为笔记
+                                    item
+                                        .setTitle(`Note`)
+                                        .setIcon('document')
+                                        .onClick(()=>{
+                                            this.handle.heading_to_note(markdownView,lineIndex,modifyPeerHeadings)
+                                        })
+                                })
+                                .showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
                     }
         }
     }

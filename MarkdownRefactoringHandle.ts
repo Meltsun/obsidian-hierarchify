@@ -27,10 +27,30 @@ function isText( node: Content ): node is Text{
     return node?.type === 'text';
 }
 
+function get_heading_text(heading:Heading,isDeleteIndex=true){
+    for(const textNodeOfHeading of heading.children){
+        if(isText(textNodeOfHeading)){
+            if(isDeleteIndex){
+                return textNodeOfHeading.value.replace(/([0-9]+\.)* */,'');
+            }
+            else{
+                return textNodeOfHeading.value
+            }
+        }
+    }
+    return ''
+}
+
+export function is_valid_windows_fileName(fileName: string): boolean {
+    // eslint-disable-next-line no-control-regex
+    const regex = /^[^<>:"/\\|?*\x00-\x1F]*[^<>:"/\\|?*\x00-\x1F\s.]$/;
+    return regex.test(fileName);
+}
+
 //通过这个句柄处理markdown,最后通过stringify()转回字符串
 export class MarkdownRefactoringHandle{
     allNodes:Content[];
-    private root:Root;
+    root:Root;
     constructor(markdownText:string){
         this.root = fromMarkdown(markdownText)
         this.allNodes = this.root.children;
@@ -191,7 +211,7 @@ export class MarkdownRefactoringHandle{
         return this
     }
 
-    public stringify():string{
+    public stringify(root=this.root):string{
         //const join:Join = function(left,right,parents,state){
         //    return undefined;// TODO:
         //}
@@ -200,11 +220,106 @@ export class MarkdownRefactoringHandle{
             listItem:listItemHandle
         }
 
-        return toMarkdown(this.root,{bullet:'-',listItemIndent:'tab',handlers:handlers})
+        return toMarkdown(root,{bullet:'-',listItemIndent:'tab',handlers:handlers})
+    }
+
+    public get_content_of_a_heading_by_line(line:number){
+        const seletedState=this.check_state_by_line(line);
+        if(seletedState===undefined){
+            return {headingText:'',content:''} as HeadingTextWithContent;
+        }
+        const seletedDepth=seletedState.headingDepth
+        if(!isHeading(seletedState.node)){
+            return {headingText:'',content:''} as HeadingTextWithContent;
+        }
+        const newRoot={
+            type:"root",
+            children:[]
+        } as Root
+        for(let i=seletedState.nodeIndex+1;i<this.allNodes.length;i++){
+            const thisNode=this.allNodes[i]
+            if(isHeading(thisNode)){
+                if(thisNode.depth<=seletedState.headingDepth){
+                    break;
+                }
+                thisNode.depth-=seletedDepth;
+            }
+            newRoot.children.push(thisNode);
+        }
+        return {
+            headingText:get_heading_text(seletedState.node),
+            content:this.stringify(newRoot)
+        } as HeadingTextWithContent
+    }
+
+    public get_contents_of_peer_heading_by_line(line:number){
+        const seletedState=this.check_state_by_line(line);
+        if(seletedState===undefined){
+            return [{headingText:'',content:''}] as HeadingTextWithContent[];
+        }
+        const seletedDepth=seletedState.headingDepth
+        if(!isHeading(seletedState.node)){
+            return [{headingText:'',content:''}] as HeadingTextWithContent[];
+        }
+        let firstHeadingIndex=seletedState.nodeIndex;
+        for(let j=firstHeadingIndex;j>=0;j--){
+            const lastNode = this.allNodes[j];
+            if(isHeading(lastNode)){
+                if(lastNode.depth===seletedDepth){
+                    firstHeadingIndex=j;
+                }
+                else if(lastNode.depth<seletedDepth){
+                    break;
+                }
+            }
+        }
+        const allNewTemps=[];
+        let thisRoot;
+        for(let i=firstHeadingIndex;i<this.allNodes.length;i++){
+            const thisNode=this.allNodes[i]
+            if(isHeading(thisNode)){
+                if(thisNode.depth<seletedDepth){
+                    break;
+                }
+                if(thisNode.depth===seletedDepth){
+                    if(thisRoot!==undefined){
+                        allNewTemps.push(thisRoot)
+                    }
+                    thisRoot={
+                        headingtext:get_heading_text(thisNode),
+                        root:{
+                            type:"root",
+                            children:[]
+                        } as Root
+                    }
+                    continue;
+                }
+                else{
+                    thisNode.depth-=seletedState.node.depth;
+                }
+            }
+            if(thisRoot!=undefined){
+                thisRoot.root.children.push(thisNode);
+            }
+        }
+        if(thisRoot!==undefined){
+            allNewTemps.push(thisRoot)
+        }
+        const allAns=[] as HeadingTextWithContent[]
+        for(const temp of allNewTemps){
+            allAns.push({
+                headingText:temp.headingtext,
+                content:this.stringify(temp.root)
+            })
+        }
+        return allAns;
     }
 }
 
-
+interface HeadingTextWithContent{
+    headingText:string;
+    content:string;
+}
 class HeadingIndexHandle{
     public headingIndex=[0, 0, 0, 0, 0, 0, 0] as unknown as HeadingDepth[];
     headingDepth=0;
@@ -328,16 +443,54 @@ class heading_to_list_recursive_handle{
 
     heading_to_list_recursive(index:number,parent:ListItem[]):number{
         const lastHeading = this.allNodes[index] as Heading;
-        for(const textNodeOfHeading of lastHeading.children){
-            if(isText(textNodeOfHeading)){
-                const headingText = textNodeOfHeading.value.replace(/([0-9]+\.)* */,'');
-                const newList={
-                        type: 'list',
-                        ordered: true,
-                        start: 1,
+        const headingText =  get_heading_text(lastHeading);
+        const newList={
+                type: 'list',
+                ordered: true,
+                start: 1,
+                spread: false,
+                children: [] as ListItem[]
+            } as List;
+        parent.push({
+            type: 'listItem',
+            spread: false,
+            children: [
+                {
+                    type: 'paragraph',
+                    children: [
+                        {
+                            type:'text',
+                            value: headingText,
+                        } as Text
+                    ]
+                } as Paragraph,
+                newList
+            ]}as ListItem);
+        parent=newList.children;
+        this.deleteCount++;
+        index++;
+        let listIndex = 1;
+        for(;index<this.allNodes.length;index++){
+            const thisNode = this.allNodes[index];
+            if(isHeading(thisNode)){
+                if(thisNode.depth>lastHeading.depth){
+                    index=this.heading_to_list_recursive(index,parent);
+                }
+                else{
+                    break;
+                }
+            }
+            else if(isParagraph(thisNode)){
+                parent.push(
+                    {
+                        type: 'listItem',
                         spread: false,
-                        children: [] as ListItem[]
-                    } as List;
+                        children: [thisNode]
+                    } as ListItem
+                )
+                this.deleteCount++;
+            }
+            else if(isList(thisNode)){
                 parent.push({
                     type: 'listItem',
                     spread: false,
@@ -347,64 +500,21 @@ class heading_to_list_recursive_handle{
                             children: [
                                 {
                                     type:'text',
-                                    value: headingText,
+                                    value: headingText+`-list${listIndex}`,
                                 } as Text
                             ]
                         } as Paragraph,
-                        newList
+                        thisNode
                     ]}as ListItem);
-                parent=newList.children;
                 this.deleteCount++;
-                index++;
-                let listIndex = 1;
-                for(;index<this.allNodes.length;index++){
-                    const thisNode = this.allNodes[index];
-                    if(isHeading(thisNode)){
-                        if(thisNode.depth>lastHeading.depth){
-                            index=this.heading_to_list_recursive(index,parent);
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    else if(isParagraph(thisNode)){
-                        parent.push(
-                            {
-                                type: 'listItem',
-                                spread: false,
-                                children: [thisNode]
-                            } as ListItem
-                        )
-                        this.deleteCount++;
-                    }
-                    else if(isList(thisNode)){
-                        parent.push({
-                            type: 'listItem',
-                            spread: false,
-                            children: [
-                                {
-                                    type: 'paragraph',
-                                    children: [
-                                        {
-                                            type:'text',
-                                            value: headingText+`-list${listIndex}`,
-                                        } as Text
-                                    ]
-                                } as Paragraph,
-                                thisNode
-                            ]}as ListItem);
-                        this.deleteCount++;
-                        listIndex++;
-                    }
-                    else{
-                        this.tail.push(thisNode)
-                        this.deleteCount++;
-                    }
-                }
-                return index-1;
+                listIndex++;
+            }
+            else{
+                this.tail.push(thisNode)
+                this.deleteCount++;
             }
         }
-        return -1;
+        return index-1;
     }
 }
 
