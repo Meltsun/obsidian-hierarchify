@@ -20,5 +20,8 @@
   },
   "include": [
     "**/*.ts"
+  ],
+  "exclude": [
+    "js_src/my-listitem-handle.js"
   ]
 }

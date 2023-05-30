@@ -2,7 +2,7 @@ import {Root,Heading,List,Text,Content,ListItem,Paragraph,} from 'mdast';
 import {fromMarkdown} from 'mdast-util-from-markdown'
 import { toMarkdown} from 'mdast-util-to-markdown';
 import { Node } from 'unist';
-import {listItemHandle} from './my-listitem-handle.js'
+import {listItemHandle} from './js_src/my-listitem-handle.js'
 
 
 export type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
