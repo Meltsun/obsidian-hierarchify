@@ -1,5 +1,6 @@
-import {MarkdownView,Notice,TFile,TFolder,Vault} from "obsidian";
+import {MarkdownView,Notice,TFile,TFolder,Vault,Workspace,MetadataCache} from "obsidian";
 import {MarkdownRefactoringHandle,HeadingDepth,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
+import escapeStringRegexp from 'escape-string-regexp';
 export type { HeadingDepth };
 
 //设置项
@@ -17,8 +18,8 @@ const MY_DEFAULT_SETTING: MySettings = {
 
 export class CoreHandle{
     private settings:MySettings
-
-    constructor(private vault:Vault){}
+    
+    constructor(private vault:Vault,private workspace:Workspace,private metaCache:MetadataCache){}
 
     public set_settings(newSettings:Partial<MySettings>){
         this.settings=Object.assign({},MY_DEFAULT_SETTING,this.settings,newSettings)
@@ -97,54 +98,74 @@ export class CoreHandle{
         new Notice("reflactor:列表转标题")
     }
 
+    public async ensure_a_note(parentFolderAbFile:TFolder,name:string):Promise<TFile>{
+        name=name+'.md'
+        const folderPath=parentFolderAbFile.path
+        let notePath = (parentFolderAbFile.isRoot()?'':folderPath+'/')+name;
+        let noteFile = this.vault.getAbstractFileByPath(notePath);
+        if(!(noteFile instanceof TFile)){
+            if(!is_valid_windows_fileName(name+'.md')){
+                let illegalIndex=-1;
+                do{
+                    illegalIndex++;
+                    notePath = folderPath+'/'+"原文件标题不合法_"+illegalIndex+'.md'
+                }while(this.vault.getAbstractFileByPath(notePath) instanceof TFile)
+            }
+            noteFile=await this.vault.create(notePath,'');
+        }
+        return noteFile as TFile
+    }
+
+    public async ensure_a_folder(parentFolderAbFile:TFolder,name:string):Promise<TFolder>{
+        let folderPath = (parentFolderAbFile.isRoot()?'':parentFolderAbFile.path+'/')+name
+        let folderAbFile = this.vault.getAbstractFileByPath(folderPath);
+        if(!(folderAbFile instanceof TFolder)){
+            if(!is_valid_windows_fileName(name)){
+                let illegalIndex=0;
+                do{
+                    folderPath = parentFolderAbFile+'/'+"原文件夹标题不合法_"+illegalIndex
+                    illegalIndex++;
+                }while(this.vault.getAbstractFileByPath(folderPath) instanceof TFile)
+            }
+            await this.vault.createFolder(folderPath);
+            folderAbFile=this.vault.getAbstractFileByPath(folderPath)
+        }
+        return folderAbFile as TFolder
+    }
+
+    public async ensure_folder_note(folder:TFolder){
+        return this.ensure_a_note(folder,folder.name)
+    }
+
+    public async ensure_note_end(note:TFile,end:string){
+        const oldContent = await this.vault.read(note);
+        if(!new RegExp(`${escapeStringRegexp(end)}\\s*$`).test(oldContent)){
+            if(!/\n\n---+\s*$|^\s*$/.test(oldContent)){
+                end='\n\n---\n'+end
+            }
+            await this.vault.modify(note, oldContent+end);
+        }
+    }
+
     public async heading_to_note(markdownView:MarkdownView,line:number,modifyPeerHeadings:boolean){
-        console.log("标题转笔记");
+        const selectedNote = markdownView.file;
+        if(selectedNote.parent == null){
+            return;
+        }
         const editor = markdownView.editor;
         const handle=new MarkdownRefactoringHandle(editor.getValue());
         if(modifyPeerHeadings){
             const notes=handle.get_contents_of_peer_heading_by_line(line+1);
-            const folderPath=markdownView.file.path.slice(0,-3);
-            if(!(this.vault.getAbstractFileByPath(folderPath) instanceof TFolder)){
-                await this.vault.createFolder(folderPath)
-            }
-            let isAllFileNameLegal=true;
+            const folder = await this.ensure_a_folder(selectedNote.parent,markdownView.file.name.slice(0,-3))
             for(const noteInfo of notes){
-                if(is_valid_windows_fileName(noteInfo.headingText)){
-                    const notePath=folderPath+'/'+noteInfo.headingText+".md";
-                    const abFile = this.vault.getAbstractFileByPath(notePath);
-                    const file=abFile instanceof TFile?abFile as TFile:await this.vault.create(notePath, "");
-                    await this.vault.append(file,noteInfo.content)
-                }
-                else{
-                    isAllFileNameLegal=false;
-                    let notePath;
-                    let illegalIndex=-1;
-                    do{
-                        illegalIndex++;
-                        notePath = folderPath+'/'+"原标题不合法_"+illegalIndex+'.md'
-                    }while(this.vault.getAbstractFileByPath(notePath) instanceof TFile)
-                    await this.vault.create(notePath,"原标题:"+noteInfo.headingText+'\n---\n'+noteInfo.content);
-                }
-            }
-            if(isAllFileNameLegal){
-                new Notice("部分标题无法作为合法的文件名。请手动更改标题")
+                const newNote = await this.ensure_a_note(folder,noteInfo.headingText)
+                await this.ensure_note_end(newNote,noteInfo.content)
             }
         }
         else{
             const noteInfo=handle.get_content_of_a_heading_by_line(line+1);
-            const folderPath=markdownView.file.parent?.path
-            if(folderPath===undefined){
-                return;
-            }
-            if(is_valid_windows_fileName(noteInfo.headingText)){
-                const notePath=folderPath+'/'+noteInfo.headingText+".md";
-                const abFile = this.vault.getAbstractFileByPath(folderPath);
-                const file=abFile instanceof TFile?abFile as TFile:await this.vault.create(notePath, "");
-                await this.vault.append(file,noteInfo.content)
-            }
-            else{
-                new Notice("标题无法作为合法的文件名。请先手动更改标题")
-            }
+            const newNote=await this.ensure_a_note(selectedNote.parent,noteInfo.headingText)
+            await this.ensure_note_end(newNote,noteInfo.content)
         }
     }
 
@@ -152,8 +173,18 @@ export class CoreHandle{
         //TODO:
     }
 
-    public add_links_based_on_file_tree(){
+    public add_filetree_link_by_folder(folder:TFolder){
         //TODO:
+        for(const file of folder.children){
+            if(file instanceof TFolder){
+                this.add_filetree_link_by_folder(file)
+            }
+            else{
+                this.metaCache.fileToLinktext(file as TFile,'')
+            }
+        }
     }
+
+
 
 }

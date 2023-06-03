@@ -1,5 +1,5 @@
 //添加交互接口，调用core
-import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu} from "obsidian";
+import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu, TFolder} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
 import {CoreHandle,MySettings,HeadingDepth} from "./core";
 
@@ -27,7 +27,7 @@ export default class myPlugin extends Plugin {
 
     //启动时加载
     async onload() {
-        this.handle=new CoreHandle(this.app.vault);
+        this.handle=new CoreHandle(this.app.vault,this.app.workspace,this.app.metadataCache);
         await this.load_settings();
         //设置里，添加标签页
         this.addSettingTab(new MySettingTab(this.app, this,this.handle));
@@ -117,6 +117,23 @@ export default class myPlugin extends Plugin {
                                 });
                         });
                 }
+            })
+        );
+
+        this.registerEvent(
+        this.app.workspace.on("file-menu", (menu, folder) => {
+                if(!(folder instanceof TFolder)){
+                    return
+                }
+                menu.addItem((item) => {
+                    item
+                        .setTitle("根据文件树添加链接")
+                        .setIcon("link")
+                        .onClick(async () => {
+                            console.log("在文件树点击右键菜单")
+                            this.handle.add_filetree_link_by_folder(folder)
+                        });
+                });
             })
         );
     }

@@ -30,7 +30,7 @@ function isText( node: Content ): node is Text{
 function get_heading_text(heading:Heading,isDeleteIndex=true){
     for(const textNodeOfHeading of heading.children){
         if(isText(textNodeOfHeading)){
-            if(isDeleteIndex){
+        if(isDeleteIndex){
                 return textNodeOfHeading.value.replace(/([0-9]+\.)* */,'');
             }
             else{
@@ -190,7 +190,7 @@ export class MarkdownRefactoringHandle{
                             listIndexHandleMethod?:string;
                         }={}){
         const {
-            addHeadingIndexFrom: addHeadingIndexFrom = 6 as HeadingDepth,//为#数量大于等于此值的标题添加序号
+            addHeadingIndexFrom: addHeadingIndexFrom = 7,//为#数量大于等于此值的标题添加序号
             listIndexHandleMethod = 'Disabled'//列表序号的修改方法，直接使用设置里相应选项的字符串
         }=options;
         
@@ -247,7 +247,7 @@ export class MarkdownRefactoringHandle{
             newRoot.children.push(thisNode);
         }
         return {
-            headingText:get_heading_text(seletedState.node),
+            headingText:get_heading_text(seletedState.node,false),
             content:this.stringify(newRoot)
         } as HeadingTextWithContent
     }
@@ -286,7 +286,7 @@ export class MarkdownRefactoringHandle{
                         allNewTemps.push(thisRoot)
                     }
                     thisRoot={
-                        headingtext:get_heading_text(thisNode),
+                        headingtext:get_heading_text(thisNode,false),
                         root:{
                             type:"root",
                             children:[]
@@ -323,7 +323,8 @@ interface HeadingTextWithContent{
 class HeadingIndexHandle{
     public headingIndex=[0, 0, 0, 0, 0, 0, 0] as unknown as HeadingDepth[];
     headingDepth=0;
-    constructor(private addHeadingIndexFrom:HeadingDepth|7=7,private minHeadingDepth:HeadingDepth|undefined=undefined){
+    //undefined表示不改变标题
+    constructor(private addHeadingIndexFrom:HeadingDepth|7|undefined=undefined,private minHeadingDepth:HeadingDepth|undefined=undefined){
     }
     public update(headingNode:Heading){
         this.headingDepth=headingNode.depth;
@@ -336,26 +337,28 @@ class HeadingIndexHandle{
         for(let j=headingNode.depth+1;j<this.headingIndex.length;j++){
             this.headingIndex[j]=0 as HeadingDepth; 
         }
-        for(const childNode of headingNode.children){
-            if(!isText(childNode)){
-                continue;
+        if(this.addHeadingIndexFrom!=undefined){
+            for(const childNode of headingNode.children){
+                if(!isText(childNode)){
+                    continue;
+                }
+                let indexText='';
+                let start;
+                if(this.minHeadingDepth!=undefined && this.minHeadingDepth>this.addHeadingIndexFrom){
+                    start=this.minHeadingDepth;
+                }
+                else{
+                    start=this.addHeadingIndexFrom;
+                }
+                for(let j=start;j<=headingNode.depth;j++){
+                    indexText=indexText+this.headingIndex[j]+'.';
+                }
+                if(indexText!==''){
+                    indexText+=' '
+                }
+                childNode.value=childNode.value.replace(/([0-9]+\.)* */,indexText);
+                break;
             }
-            let indexText='';
-            let start;
-            if(this.minHeadingDepth!=undefined && this.minHeadingDepth>this.addHeadingIndexFrom){
-                start=this.minHeadingDepth;
-            }
-            else{
-                start=this.addHeadingIndexFrom;
-            }
-            for(let j=start;j<=headingNode.depth;j++){
-                indexText=indexText+this.headingIndex[j]+'.';
-            }
-            if(indexText!==''){
-                indexText+=' '
-            }
-            childNode.value=childNode.value.replace(/([0-9]+\.)* */,indexText);
-            break;
         }
     }
 }
