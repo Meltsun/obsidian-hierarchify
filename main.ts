@@ -1,7 +1,7 @@
 //添加交互接口，调用core
 import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu, TFolder} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
-import {CoreHandle,MySettings,HeadingDepth} from "./core";
+import {CoreHandle,MySettings,HeadingDepth,listIndexHandleMethodList} from "./core";
 
 export default class myPlugin extends Plugin {
     handle:CoreHandle
@@ -95,25 +95,24 @@ export default class myPlugin extends Plugin {
                                 .setTitle("将此列表重构为...")
                                 .setIcon("document")
                                 .onClick((event) => {
-                                    if((event as MouseEvent).x && (event as MouseEvent).y){
-                                        const mouseEvent = event as MouseEvent;
-                                        //调整标题级别菜单
-                                        const headingModifyMenu = new Menu();
-                                        headingModifyMenu
-                                            .addItem((item)=>{
-                                                item
-                                                    .setTitle("取消")
-                                            })
-                                            .addSeparator()
-                                            .addItem((item)=>{
-                                                item
-                                                    .setTitle("标题")
-                                                    .onClick(()=>{
-                                                        this.handle.list_to_heading(markdownView,cursor.line)
-                                                    })
-                                            })
-                                            .showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
-                                    }
+                                    const mouseEvent=event as MouseEvent
+                                    //调整标题级别菜单
+                                    const headingModifyMenu = new Menu();
+                                    headingModifyMenu
+                                        .addItem((item)=>{
+                                            item
+                                                .setTitle("取消")
+                                        })
+                                        .addSeparator()
+                                        .addItem((item)=>{
+                                            item
+                                                .setTitle("标题")
+                                                .onClick(()=>{
+                                                    this.handle.list_to_heading(markdownView,cursor.line)
+                                                })
+                                        })
+                                        .showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
+                                
                                 });
                         });
                 }
@@ -141,55 +140,52 @@ export default class myPlugin extends Plugin {
     make_heading_content_menuitem_callback(markdownView: MarkdownView,lineIndex:number,line:string,modifyPeerHeadings:boolean){
         const match = line.match(/^#+/)
         const depth = match?match[0].length:0;
-        return (event:MouseEvent) => {
-                    if((event as MouseEvent).x && (event as MouseEvent).y){
-                        const mouseEvent = event as MouseEvent;
-                        //调整标题级别菜单
-                        const headingModifyMenu = new Menu();
-                        headingModifyMenu
-                            .addItem((item)=>{
-                                item
-                                    .setTitle("取消")
+        return (mouseEvent:MouseEvent) => {
+            //调整标题级别菜单
+            const headingModifyMenu = new Menu();
+            headingModifyMenu
+                .addItem((item)=>{
+                    item
+                        .setTitle("取消")
+                })
+                .addSeparator()
+            for(let i:HeadingDepth=1;i<=6;i++){
+                if(i==depth){
+                    headingModifyMenu.addItem((item)=>{
+                        item
+                            .setTitle(`H${i} (now)`)
+                    })
+                }
+                else{
+                    headingModifyMenu.addItem((item)=>{
+                        item
+                            .setTitle(`H${i}`)
+                            .onClick(()=>{
+                                this.handle.heading_to_heading(markdownView,lineIndex,i,modifyPeerHeadings)
                             })
-                            .addSeparator()
-                        for(let i=1 as HeadingDepth;i<=6;i++){
-                            if(i==depth){
-                                headingModifyMenu.addItem((item)=>{
-                                    item
-                                        .setTitle(`H${i} (now)`)
-                                })
-                            }
-                            else{
-                                headingModifyMenu.addItem((item)=>{
-                                    item
-                                        .setTitle(`H${i}`)
-                                        .onClick(()=>{
-                                            this.handle.heading_to_heading(markdownView,lineIndex,i,modifyPeerHeadings)
-                                        })
-                                })
-                            }
-                        }
-                        headingModifyMenu
-                                .addSeparator()
-                                .addItem((item)=>{//转化为列表
-                                    item
-                                        .setTitle(`List`)
-                                        .setIcon('list')
-                                        .onClick(()=>{
-                                            this.handle.heading_to_list(markdownView,lineIndex,modifyPeerHeadings)
-                                        })
-                                })
-                                .addSeparator()
-                                .addItem((item)=>{//转化为笔记
-                                    item
-                                        .setTitle(`Note`)
-                                        .setIcon('document')
-                                        .onClick(()=>{
-                                            this.handle.heading_to_note(markdownView,lineIndex,modifyPeerHeadings)
-                                        })
-                                })
-                                .showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
-                    }
+                    })
+                }
+            }
+            headingModifyMenu
+                .addSeparator()
+                .addItem((item)=>{//转化为列表
+                    item
+                        .setTitle(`List`)
+                        .setIcon('list')
+                        .onClick(()=>{
+                            this.handle.heading_to_list(markdownView,lineIndex,modifyPeerHeadings)
+                        })
+                })
+                .addSeparator()
+                .addItem((item)=>{//转化为笔记
+                    item
+                        .setTitle(`Note`)
+                        .setIcon('document')
+                        .onClick(()=>{
+                            this.handle.heading_to_note(markdownView,lineIndex,modifyPeerHeadings)
+                        })
+                })
+                .showAtPosition({ x: mouseEvent.x-15, y: mouseEvent.y-20})
         }
     }
     
@@ -224,9 +220,9 @@ class MySettingTab extends PluginSettingTab {
                     'Increase from 1':'Increase from 1',
                     'Increase from any':'Increase from any',
                 })
-                .setValue(this.plugin.get_settings().listIndexHandleMethod as string)
+                .setValue(this.plugin.get_settings().listIndexHandleMethod)
                 .onChange(async (value) => {
-                    this.plugin.set_settings({listIndexHandleMethod:value});                   
+                    this.plugin.set_settings({listIndexHandleMethod:value as typeof listIndexHandleMethodList[number]});                   
                 })
             )
                     

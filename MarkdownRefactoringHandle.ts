@@ -7,6 +7,13 @@ import {listItemHandle} from './js_src/my-listitem-handle.js'
 
 export type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
 
+export const listIndexHandleMethodList=['Increase from 1','Increase from Any','Disabled'] as const;
+
+export interface MarkdownRefactoringSettings{
+    listIndexHandleMethod:typeof listIndexHandleMethodList[number],
+    addHeadingIndexFrom:HeadingDepth|7
+}
+
 function isHeadingDepth(depth: number): depth is HeadingDepth{
     return depth>=1 && depth<=6;
 }
@@ -51,7 +58,11 @@ export function is_valid_windows_fileName(fileName: string): boolean {
 export class MarkdownRefactoringHandle{
     allNodes:Content[];
     root:Root;
-    constructor(markdownText:string){
+    constructor(markdownText:string,
+                private settings:MarkdownRefactoringSettings={
+                    addHeadingIndexFrom:7,
+                    listIndexHandleMethod:'Disabled'
+                }){
         this.root = fromMarkdown(markdownText)
         this.allNodes = this.root.children;
     }
@@ -75,7 +86,8 @@ export class MarkdownRefactoringHandle{
                     }
                 }
             }
-            const selectedHeading=this.allNodes[firstHeadingIndex] as Heading;
+            const selectedHeading=this.allNodes[firstHeadingIndex];
+            if(!isHeading(selectedHeading)){break;}
             const oldDepth=selectedHeading.depth
             selectedHeading.depth=newDepth;
             for(let i=firstHeadingIndex+1;i<this.allNodes.length;i++){
@@ -181,18 +193,15 @@ export class MarkdownRefactoringHandle{
         if(state.headingDepth+flatteningCount>6){
             flatteningCount=6-state.headingDepth;
         }
-        this.allNodes.splice(state.nodeIndex,1,...new list_to_headin_handle(state.headingDepth+1,flatteningCount,state.node).Contents)
+        this.allNodes.splice(state.nodeIndex,1,...new list_to_heading_handle(state.headingDepth+1,flatteningCount,state.node).Contents)
         return this;
     }
 
-    public format_index(options:{
-                            addHeadingIndexFrom?:HeadingDepth|7;
-                            listIndexHandleMethod?:string;
-                        }={}){
+    public format_index(options:Partial<MarkdownRefactoringSettings>={}){
         const {
-            addHeadingIndexFrom: addHeadingIndexFrom = 7,//为#数量大于等于此值的标题添加序号
-            listIndexHandleMethod = 'Disabled'//列表序号的修改方法，直接使用设置里相应选项的字符串
-        }=options;
+            addHeadingIndexFrom,//为#数量大于等于此值的标题添加序号
+            listIndexHandleMethod//列表序号的修改方法，直接使用设置里相应选项的字符串
+        }={...this.settings,...options};
         
         const headingIndexHandle = new HeadingIndexHandle(addHeadingIndexFrom,this.get_min_max_heading_depth()?.min);
         const listIndexHandle = new ListIndexHandle(listIndexHandleMethod);
@@ -226,16 +235,16 @@ export class MarkdownRefactoringHandle{
     public get_content_of_a_heading_by_line(line:number){
         const seletedState=this.check_state_by_line(line);
         if(seletedState===undefined){
-            return {headingText:'',content:''} as HeadingTextWithContent;
+            return new HeadingTextWithContent('','');
         }
         const seletedDepth=seletedState.headingDepth
         if(!isHeading(seletedState.node)){
-            return {headingText:'',content:''} as HeadingTextWithContent;
+            return new HeadingTextWithContent('','');
         }
-        const newRoot={
+        const newRoot:Root={
             type:"root",
             children:[]
-        } as Root
+        }
         for(let i=seletedState.nodeIndex+1;i<this.allNodes.length;i++){
             const thisNode=this.allNodes[i]
             if(isHeading(thisNode)){
@@ -246,20 +255,18 @@ export class MarkdownRefactoringHandle{
             }
             newRoot.children.push(thisNode);
         }
-        return {
-            headingText:get_heading_text(seletedState.node,false),
-            content:this.stringify(newRoot)
-        } as HeadingTextWithContent
+        return new HeadingTextWithContent(get_heading_text(seletedState.node,false),this.stringify(newRoot))
     }
 
     public get_contents_of_peer_heading_by_line(line:number){
         const seletedState=this.check_state_by_line(line);
         if(seletedState===undefined){
-            return [{headingText:'',content:''}] as HeadingTextWithContent[];
+            return [new HeadingTextWithContent('','')];
         }
         const seletedDepth=seletedState.headingDepth
-        if(!isHeading(seletedState.node)){
-            return [{headingText:'',content:''}] as HeadingTextWithContent[];
+        let firstHeadingNode=seletedState.node;
+        if(!isHeading(firstHeadingNode)){
+            return [new HeadingTextWithContent('','')];
         }
         let firstHeadingIndex=seletedState.nodeIndex;
         for(let j=firstHeadingIndex;j>=0;j--){
@@ -267,6 +274,7 @@ export class MarkdownRefactoringHandle{
             if(isHeading(lastNode)){
                 if(lastNode.depth===seletedDepth){
                     firstHeadingIndex=j;
+                    firstHeadingNode=lastNode;
                 }
                 else if(lastNode.depth<seletedDepth){
                     break;
@@ -274,28 +282,35 @@ export class MarkdownRefactoringHandle{
             }
         }
         const allNewTemps=[];
-        let thisRoot;
-        for(let i=firstHeadingIndex;i<this.allNodes.length;i++){
+        let thisRoot:{
+            headingtext:string;
+            root:Root
+        }={
+            headingtext:get_heading_text(firstHeadingNode,false),
+            root:{
+                type:"root",
+                children:[]
+            } 
+        };
+        for(let i=firstHeadingIndex+1;i<this.allNodes.length;i++){
             const thisNode=this.allNodes[i]
             if(isHeading(thisNode)){
                 if(thisNode.depth<seletedDepth){
                     break;
                 }
                 if(thisNode.depth===seletedDepth){
-                    if(thisRoot!==undefined){
-                        allNewTemps.push(thisRoot)
-                    }
+                    allNewTemps.push(thisRoot)
                     thisRoot={
                         headingtext:get_heading_text(thisNode,false),
                         root:{
                             type:"root",
                             children:[]
-                        } as Root
+                        } 
                     }
                     continue;
                 }
                 else{
-                    thisNode.depth-=seletedState.node.depth;
+                    thisNode.depth-=firstHeadingNode.depth;
                 }
             }
             if(thisRoot!=undefined){
@@ -305,7 +320,7 @@ export class MarkdownRefactoringHandle{
         if(thisRoot!==undefined){
             allNewTemps.push(thisRoot)
         }
-        const allAns=[] as HeadingTextWithContent[]
+        const allAns:HeadingTextWithContent[]=[]
         for(const temp of allNewTemps){
             allAns.push({
                 headingText:temp.headingtext,
@@ -316,12 +331,11 @@ export class MarkdownRefactoringHandle{
     }
 }
 
-interface HeadingTextWithContent{
-    headingText:string;
-    content:string;
+class HeadingTextWithContent{
+    constructor(public headingText:string,public content:string){}
 }
 class HeadingIndexHandle{
-    public headingIndex=[0, 0, 0, 0, 0, 0, 0] as unknown as HeadingDepth[];
+    public headingIndex:(0|HeadingDepth)[]=[0, 0, 0, 0, 0, 0, 0];
     headingDepth=0;
     //undefined表示不改变标题
     constructor(private addHeadingIndexFrom:HeadingDepth|7|undefined=undefined,private minHeadingDepth:HeadingDepth|undefined=undefined){
@@ -335,7 +349,7 @@ class HeadingIndexHandle{
         }
         this.headingIndex[headingNode.depth]++;
         for(let j=headingNode.depth+1;j<this.headingIndex.length;j++){
-            this.headingIndex[j]=0 as HeadingDepth; 
+            this.headingIndex[j]=0; 
         }
         if(this.addHeadingIndexFrom!=undefined){
             for(const childNode of headingNode.children){
@@ -385,7 +399,7 @@ class ListIndexHandle{
         for(const item of listNode.children){
             this.listIndex[this.listDepth]++;
             for(let i=this.listDepth+1;i<this.listIndex.length;i++){
-                this.listIndex[i]=0 as HeadingDepth;
+                this.listIndex[i]=0;
             }
             for(const chileNode of item.children){
                 if(isList(chileNode) 
@@ -404,15 +418,16 @@ class ListIndexHandle{
 class heading_to_list_recursive_handle{
     tail:Content[]=[];
     deleteCount=0;
-    newlist={
+    newlist:List={
         type: 'list',
         ordered: true,
         start: 1,
         spread: false,
         children: []
-    } as List
+    }
     constructor(headingIndex:number,private allNodes:Content[],modifyPeerHeadings=false,onlyModifyBelowPeerHeadings=false){
-        const selectedHeading=this.allNodes[headingIndex] as Heading;
+        const selectedHeading=this.allNodes[headingIndex];
+        if(!isHeading(selectedHeading)){return}
         let firstHeadingIndex=headingIndex;
         if(modifyPeerHeadings){
             for(let j=headingIndex-1;!(onlyModifyBelowPeerHeadings) && j>=0;j--){
@@ -445,15 +460,18 @@ class heading_to_list_recursive_handle{
     }
 
     heading_to_list_recursive(index:number,parent:ListItem[]):number{
-        const lastHeading = this.allNodes[index] as Heading;
+        const lastHeading = this.allNodes[index];
+        if(!isHeading(lastHeading)){
+            return 0;
+        }
         const headingText =  get_heading_text(lastHeading);
-        const newList={
+        const newList:List={
                 type: 'list',
                 ordered: true,
                 start: 1,
                 spread: false,
-                children: [] as ListItem[]
-            } as List;
+                children: []
+            };
         parent.push({
             type: 'listItem',
             spread: false,
@@ -464,11 +482,11 @@ class heading_to_list_recursive_handle{
                         {
                             type:'text',
                             value: headingText,
-                        } as Text
+                        }
                     ]
-                } as Paragraph,
+                },
                 newList
-            ]}as ListItem);
+            ]});
         parent=newList.children;
         this.deleteCount++;
         index++;
@@ -489,7 +507,7 @@ class heading_to_list_recursive_handle{
                         type: 'listItem',
                         spread: false,
                         children: [thisNode]
-                    } as ListItem
+                    }
                 )
                 this.deleteCount++;
             }
@@ -504,11 +522,11 @@ class heading_to_list_recursive_handle{
                                 {
                                     type:'text',
                                     value: headingText+`-list${listIndex}`,
-                                } as Text
+                                }
                             ]
-                        } as Paragraph,
+                        },
                         thisNode
-                    ]}as ListItem);
+                    ]});
                 this.deleteCount++;
                 listIndex++;
             }
@@ -521,7 +539,7 @@ class heading_to_list_recursive_handle{
     }
 }
 
-class list_to_headin_handle{
+class list_to_heading_handle{
     public Contents:Content[];
     constructor(private headingDepthStart:number,private flatteningCount:number,listNode:List){
         this.Contents=[listNode]
@@ -530,11 +548,11 @@ class list_to_headin_handle{
         }
     }
     list_to_heading(depth:HeadingDepth){
-        const newContents=[] as Content[];
+        const newContents:Content[]=[];
         for(const node of this.Contents){
             if(isList(node)){
                 for(const item of node.children){
-                    const childNewContents=[] as Content[];
+                    const childNewContents:Content[]=[];
                     const isHeadingTextGot=false;
                     for(const child of item.children){
                         if(isParagraph(child) && !isHeadingTextGot){
@@ -543,7 +561,7 @@ class list_to_headin_handle{
                                     type: 'heading',
                                     depth: depth,
                                     children: child.children,
-                                }as Heading
+                                }
                             )
                         }
                         else{

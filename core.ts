@@ -1,18 +1,19 @@
 import {MarkdownView,Notice,TFile,TFolder,Vault,Workspace,MetadataCache} from "obsidian";
-import {MarkdownRefactoringHandle,HeadingDepth,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
+import {MarkdownRefactoringSettings, MarkdownRefactoringHandle , HeadingDepth ,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
 import escapeStringRegexp from 'escape-string-regexp';
 export type { HeadingDepth };
+export {listIndexHandleMethodList} from "MarkdownRefactoringHandle";
 
-//设置项
-export interface MySettings{
+interface AnotherSettings{
     testSetting1:string;
-    listIndexHandleMethod:string;
-    addHeadingIndexFrom:HeadingDepth|7;
 }
 
-const MY_DEFAULT_SETTING: MySettings = {
+//设置项
+export interface MySettings extends MarkdownRefactoringSettings,AnotherSettings{}
+
+const MY_DEFAULT_SETTINGS: MySettings = {
     testSetting1: 'test default setting',
-    listIndexHandleMethod:'Increase from 1' as 'Increase from 1'|'Increase from Any',
+    listIndexHandleMethod:'Increase from 1',
     addHeadingIndexFrom:1
 }
 
@@ -22,7 +23,7 @@ export class CoreHandle{
     constructor(private vault:Vault,private workspace:Workspace,private metaCache:MetadataCache){}
 
     public set_settings(newSettings:Partial<MySettings>){
-        this.settings=Object.assign({},MY_DEFAULT_SETTING,this.settings,newSettings)
+        this.settings=Object.assign({},MY_DEFAULT_SETTINGS,this.settings,newSettings)
     }
 
     public get_settings(){
@@ -34,12 +35,12 @@ export class CoreHandle{
         const editor = markdownView.editor;
         const cursor = editor.getCursor();
         let text = editor.getValue();
-        const handle=new MarkdownRefactoringHandle(text)
-        text = handle
-                .format_index({
-                    addHeadingIndexFrom:this.settings.addHeadingIndexFrom,
-                    listIndexHandleMethod:this.settings.listIndexHandleMethod
-                })
+        const handle=new MarkdownRefactoringHandle(
+                            text,
+                            this.settings
+                        )
+        text = handle//
+                .format_index()
                 .stringify()
         //format_index(lines,{addTitleIndexFrom:settings.titleIndex, listIndexHandleMethod:settings.listIndex});
         editor.setValue(text);
@@ -179,8 +180,8 @@ export class CoreHandle{
             if(file instanceof TFolder){
                 this.add_filetree_link_by_folder(file)
             }
-            else{
-                this.metaCache.fileToLinktext(file as TFile,'')
+            else if(file instanceof TFile){
+                this.metaCache.fileToLinktext(file,'')
             }
         }
     }
