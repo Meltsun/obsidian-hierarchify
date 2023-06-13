@@ -174,18 +174,26 @@ export class CoreHandle{
         //TODO:
     }
 
-    public add_filetree_link_by_folder(folder:TFolder){
-        //TODO:
+    public async add_filetree_link_by_folder(folder:TFolder,grandParent:TFile|undefined=undefined){
+        const folderNote=await this.ensure_a_note(folder,folder.name);
+        if(grandParent instanceof TFile){
+            await this.addLinks(folderNote,grandParent);
+        }
         for(const file of folder.children){
             if(file instanceof TFolder){
-                this.add_filetree_link_by_folder(file)
+                this.add_filetree_link_by_folder(file,folderNote)
             }
-            else if(file instanceof TFile){
-                this.metaCache.fileToLinktext(file,'')
+            else if(file instanceof TFile && file.name!==folderNote.name){
+                await this.addLinks(file,folderNote)
             }
         }
     }
-
+    async addLinks(file:TFile,parent:TFile){
+        const link='[['+this.metaCache.fileToLinktext(parent,'')+'|'+parent.name.slice(0,-3)+']]\n'
+        if(!(await this.vault.cachedRead(file)).includes(link)){
+            await this.ensure_note_end(file,link)
+        }
+    }
 
 
 }
