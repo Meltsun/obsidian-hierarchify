@@ -188,6 +188,18 @@ export class CoreHandle{
             }
         }
     }
+
+    public async add_filetree_link_by_file(file:TFile){
+        const folder = file.parent;
+        if(folder?.isRoot() && !(folder instanceof TFolder)){
+            return;
+        }
+        const folderNote=this.vault.getAbstractFileByPath(folder?.path+'/'+folder?.name+'.md')
+        if(folderNote instanceof TFile){
+            await this.addLinks(file,folderNote)
+        }
+    }
+
     async addLinks(file:TFile,parent:TFile){
         const link='[['+this.metaCache.fileToLinktext(parent,'')+'|'+parent.name.slice(0,-3)+']]\n'
         if(!(await this.vault.cachedRead(file)).includes(link)){
