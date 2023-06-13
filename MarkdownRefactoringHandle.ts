@@ -1,6 +1,6 @@
 import {Root,Heading,List,Text,Content,ListItem,Paragraph,} from 'mdast';
 import {fromMarkdown} from 'mdast-util-from-markdown'
-import { toMarkdown} from 'mdast-util-to-markdown';
+import { toMarkdown,Join} from 'mdast-util-to-markdown';
 import { Node } from 'unist';
 import {listItemHandle} from './js_src/my-listitem-handle.js'
 
@@ -18,11 +18,11 @@ function isHeadingDepth(depth: number): depth is HeadingDepth{
     return depth>=1 && depth<=6;
 }
 
-function isParagraph(node: Content): node is Paragraph{
+function isParagraph(node: Node): node is Paragraph{
     return node?.type === 'paragraph';
 }
 
-function isHeading(node: Content ):node is Heading{
+function isHeading(node: Node ):node is Heading{
     return node?.type === 'heading';
 }
 
@@ -30,7 +30,7 @@ function isList(node: Node): node is List{
     return node?.type === 'list';
 }
 
-function isText( node: Content ): node is Text{
+function isText( node: Node ): node is Text{
     return node?.type === 'text';
 }
 
@@ -221,15 +221,18 @@ export class MarkdownRefactoringHandle{
     }
 
     public stringify(root=this.root):string{
-        //const join:Join = function(left,right,parents,state){
-        //    return undefined;// TODO:
-        //}
+        const join:Join = function(left,right,parents,state){
+            if(isHeading(left)&& (isParagraph(right) || isList(right) ||isHeading(right))){
+                return 0;
+            }
+            return undefined
+        }
 
         const handlers={
             listItem:listItemHandle
         }
 
-        return toMarkdown(root,{bullet:'-',listItemIndent:'tab',handlers:handlers})
+        return toMarkdown(root,{bullet:'-',listItemIndent:'tab',handlers:handlers,join:[join]})
     }
 
     public get_content_of_a_heading_by_line(line:number){
@@ -334,6 +337,7 @@ export class MarkdownRefactoringHandle{
 class HeadingTextWithContent{
     constructor(public headingText:string,public content:string){}
 }
+
 class HeadingIndexHandle{
     public headingIndex:(0|HeadingDepth)[]=[0, 0, 0, 0, 0, 0, 0];
     headingDepth=0;
