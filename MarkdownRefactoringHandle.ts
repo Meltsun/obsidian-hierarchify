@@ -1,9 +1,8 @@
 import {Root,Heading,List,Text,Content,ListItem,Paragraph,} from 'mdast';
 import {fromMarkdown} from 'mdast-util-from-markdown'
-import { toMarkdown,Join} from 'mdast-util-to-markdown';
+import {toMarkdown,Join} from './mdast-util-to-markdown/index.js';
 import { Node } from 'unist';
-import {listItemHandle} from './js_src/my-listitem-handle.js'
-
+import { decode } from "html-entities";
 
 export type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -227,12 +226,8 @@ export class MarkdownRefactoringHandle{
             }
             return undefined
         }
-
-        const handlers={
-            listItem:listItemHandle
-        }
-
-        return toMarkdown(root,{bullet:'-',listItemIndent:'tab',handlers:handlers,join:[join]})
+        const ans = toMarkdown(root,{bullet:'-',listItemIndent:'tab',join:[join],rule:'-'})
+        return decode(ans)
     }
 
     public get_content_of_a_heading_by_line(line:number){

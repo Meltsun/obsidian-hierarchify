@@ -1,6 +1,3 @@
-//TODO: 我修改了这这个文件以避免添加多个空格
-
-
 /**
  * @typedef {import('mdast').ListItem} ListItem
  * @typedef {import('../types.js').Map} Map
@@ -19,7 +16,7 @@ import {checkListItemIndent} from 'mdast-util-to-markdown/lib/util/check-list-it
  * @param {Info} info
  * @returns {string}
  */
-export function listItemHandle(node, parent, state, info) {
+export function listItem(node, parent, state, info) {
   const listItemIndent = checkListItemIndent(state)
   let bullet = state.bulletCurrent || checkBullet(state)
 
@@ -62,7 +59,8 @@ export function listItemHandle(node, parent, state, info) {
     if (index) {
       return (blank ? '' : ' '.repeat(size)) + line
     }
-    //TODO: 我修改了这一行以避免添加多个空格
+    //TODO: 我修改了这一行
+    //避免添加多个空格
     //return (blank ? bullet : bullet + ' '.repeat(size - bullet.length)) + line
     return (blank ? bullet : bullet + ' '.repeat(size - bullet.length -1 )) + line
   }
