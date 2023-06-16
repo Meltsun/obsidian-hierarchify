@@ -1,7 +1,7 @@
 {
-	"id": "obsidian-refactor-and-index-formatter",
-	"name": "my refactor",
+	"id": "obsidian-hierarchify",
+	"name": "Hierarchify",
 	"version": "0.0.1",
-	"description": "TBD",
+	"description": " an Obsidian plugin provides some refactoring functions to streamline and enhance the management of hierarchical relationships in your notes",
 	"author": "Meltsun"
 }

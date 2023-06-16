@@ -1,20 +1,96 @@
-我有必要为自己编写的一个markdown插件来加快记笔记的效率，顺便学习一下ts。这个插件需要做的事情基本上是用mdast把笔记转化为AST，进行一些操作，然后转回来。
+# Hierarchify
 
-# 功能
-1. 为标题添加序号
-1. 标题列表互转。包括标题转列表、标题转其他等级的标题、列表转标题。**在转换时会对所选择的标题下（或列表中）的内容做递归的处理，从而保留笔记结构。**
-1. 标题和文件互转。一个标题和其中内容提取为一个文件，标题作为文件名；或者把一个文件夹下的所有笔记合并到文件夹笔记。合并和拆分笔记时会使用适当的调节顶级标题的等级
-    - 文件夹笔记即这个文件夹中与文件夹同名的笔记。一般配合使用其他文件夹笔记插件。
-1. 根据文件树添加链接。为一个笔记添加链接到每个父文件夹的链接。 **这允许我同时使用zk和文件夹树。** 
-1. TODO:把所有链接到此笔记的笔记合并到此笔记（或此文件夹）
-1. TODO:把一个笔记或标题移动到其链接到的文件夹下或笔记后
+Hierarchify is an Obsidian plugin designed to streamline and enhance the management of hierarchical relationships in your notes. It provides a set of useful features that facilitate efficient knowledge organization.
 
-# 问题
-1. 总之测试还不够，还有很多bug。目前所有功能都不应该删除文件或一次修改多个文件。
-2. mdast-util-to-markdown的部分行为似乎有点奇怪，例如会在有序列表项的序号和文字之间添加两个空格等。这些行为与obsidian编辑器的默认行为以及我的习惯不同，因而导致了一些一致性问题。我目前并不能看懂源代码，也不清楚如何控制它的行为，只能将信将疑的修改了部分代码并调整了部分obsidian设置来保证最低限度的一致性。回头有时间在研究吧。
-## 序号处理
-1. 代码块有bug
-1. 嵌套列表如果不以1开始不会被识别为列表
-## 标题转列表
-1. 目前总是会新建列表。希望如果之前已经存在列表则合并之
+## Motivation
 
+Imagine you have a set of knowledge with hierarchical relationships, such as three types of fruits: apple, banana, and watermelon. You need to decide how to structure them: Option 1: Each fruit is a separate note within a folder.
+
+```
+├─ Fruits
+│  ├─ Apple.md
+│  ├─ Banana.md
+│  └─ Watermelon.md
+```
+
+Option 2: Each fruit is a second-level heading within a single note.
+
+```markdown
+# Fruits 
+## Apple 
+...
+## Banana 
+...
+## Watermelon
+...
+
+```
+Option 3: Each fruit is a list item within a single note.
+
+```markdown
+## Fruits 
+1. Apple 
+2. Banana 
+3. Watermelon
+```
+
+Initially, you might choose Option 3, as it seems reasonable for managing a small set of content. However, as your content grows and you need to add more information, you face the challenge of dealing with nested lists or manually refactoring the structure into Option 2 or Option 1. If you later decide to use Zettelkasten and manage notes with links, you would need to manually add links to each parent note. This refactoring process can be time-consuming.
+
+An ideal solution would be to start with a Zettelkasten approach, taking atomic notes from the beginning. However, the file tree has its advantages, providing a more intuitive and conducive environment for longer notes.
+
+Therefore, Hierarchify offers the following features to save you time on decision-making and note restructuring, allowing you to combine the benefits of both Zettelkasten and the file tree.
+
+## Features
+
+1.  Title-List Conversion:
+    -   Convert titles to lists.
+    -   Transform titles to different levels of hierarchy.
+    -   Convert lists back to titles.
+    -   Preserve the structure of selected titles or lists through recursive processing.
+    -   Choose to apply the changes to a specific title or all parallel titles.
+2.  TODO: Content Extraction:
+    -   Cut and extract the content of a title or a list, facilitating easy copying to another location.
+3.  Title-File Conversion:
+    -   Extract a title and its content into a separate file, using the title as the file name.
+    -   Split notes into multiple notes based on titles, using the original note name as the folder name.
+    -   TODO: Merge all notes within a folder into a single note.
+    -   Adjust the title hierarchy appropriately when merging or splitting notes.
+4.  File Tree Linking:
+    -   Create a note with the same name as a folder and add links to other notes within that folder.
+    -   Recursively process all subfolders within the folder.
+    -   This feature allows you to disperse notes across different folders while preserving the hierarchical relationships, effectively combining Zettelkasten and the file tree.
+    -   Recommended for use in conjunction with the Folder Note plugin.
+5.  Numbered Headings:
+    -   Add sequential numbers to your headings, facilitating the conversion between ordered lists and titles.
+6.  TODO: Merge all notes linked to a specific note (or folder) into that note.
+
+All of the above features are implemented based on mdast, converting Markdown to an Abstract Syntax Tree (AST), making necessary modifications, and converting it back to Markdown. This process essentially performs formatting operations.
+
+## Issues
+
+### Different mdast Processing in Obsidian
+
+Certain behaviors of mdast differ from the default behavior of the Obsidian editor and my personal preferences, resulting in some inconsistencies.
+
+1.  Two spaces are added between the number and text in ordered list items.
+2.  Escape characters are added to all square brackets (which breaks wiki links).
+3.  TODO: Nested lists are not recognized as lists unless they start with 1.
+4.  TODO: Code blocks are not recognized as such if the language is not specified.
+
+To address the first two issues, I have made some modifications to the code and adjusted Obsidian settings accordingly:
+
+1.  Use space indentation.
+2.  Set the tab width to 4.
+
+However, extensive testing is still required, as there may be other issues. Currently, all refactoring features do not delete any note content.
+
+## Missing Configuration Options
+
+I plan to add more configuration options to define the plugin's behavior:
+
+1.  When converting titles to lists, choose whether to always create a new list (current behavior) or merge with an existing list.
+2.  Specify the location for generated files and folders when converting titles to notes, file tree linking, etc.
+
+## Future Enhancements
+
+Please refer to the TODO sections in the feature descriptions for upcoming improvements and features.
