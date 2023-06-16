@@ -4,7 +4,9 @@ Hierarchify is an Obsidian plugin designed to streamline and enhance the managem
 
 ## Motivation
 
-Imagine you have a set of knowledge with hierarchical relationships, such as three types of fruits: apple, banana, and watermelon. You need to decide how to structure them: Option 1: Each fruit is a separate note within a folder.
+Imagine you have a set of knowledge with hierarchical relationships, such as three types of fruits: apple, banana, and watermelon. You need to decide how to structure them: 
+
+Option 1: Each fruit is a separate note within a folder.
 
 ```
 ├─ Fruits
