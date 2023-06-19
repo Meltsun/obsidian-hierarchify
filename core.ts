@@ -1,6 +1,7 @@
 import {MarkdownView,Notice,TFile,TFolder,Vault,Workspace,MetadataCache} from "obsidian";
 import {MarkdownRefactoringSettings, MarkdownRefactoringHandle , HeadingDepth ,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
 import escapeStringRegexp from 'escape-string-regexp';
+import clipboardy from "clipboardy";
 export type { HeadingDepth };
 export {listIndexHandleMethodList} from "MarkdownRefactoringHandle";
 
@@ -45,59 +46,65 @@ export class CoreHandle{
         //format_index(lines,{addTitleIndexFrom:settings.titleIndex, listIndexHandleMethod:settings.listIndex});
         editor.setValue(text);
         editor.setCursor(cursor);
-        new Notice("reflactor:序号格式化")
+        new Notice("Hierarchify:format a note")
     }
 
     public heading_to_list(markdownView:MarkdownView,line:number,modifyPeerHeadings:boolean){
         const editor = markdownView.editor;
         const cursor = editor.getCursor();
         let text = editor.getValue();
-        const handle=new MarkdownRefactoringHandle(text)
+        const handle=new MarkdownRefactoringHandle(text,this.settings)
         text = handle
                 .heading_to_list_by_line(line+1,modifyPeerHeadings)
-                .format_index({
-                    addHeadingIndexFrom:this.settings.addHeadingIndexFrom,
-                    listIndexHandleMethod:this.settings.listIndexHandleMethod
-                })
+                .format_index()
                 .stringify()
         editor.setValue(text);
         editor.setCursor(cursor);
-        new Notice("reflactor:标题转列表")
+        new Notice("Hierarchify:heading to list")
     }
 
     public list_to_heading(markdownView:MarkdownView,line:number){
         const editor = markdownView.editor;
         const cursor = editor.getCursor();
         let text = editor.getValue();
-        const handle=new MarkdownRefactoringHandle(text)
+        const handle=new MarkdownRefactoringHandle(text,this.settings)
         text = handle
                 .list_to_heading_by_line(line+1)
-                .format_index({
-                    addHeadingIndexFrom:this.settings.addHeadingIndexFrom,
-                    listIndexHandleMethod:this.settings.listIndexHandleMethod
-                })
+                .format_index()
                 .stringify()
         editor.setValue(text);
         editor.setCursor(cursor);
-        new Notice("reflactor:列表转标题")
+        new Notice("Hierarchify:list to heading")
     }
 
-    public heading_to_heading(markdownView:MarkdownView,line:number,newDepth:HeadingDepth,modifyPeerHeadings:boolean){
+    public change_heading_depth(markdownView:MarkdownView,line:number,newDepth:HeadingDepth,modifyPeerHeadings:boolean){
         const editor = markdownView.editor;
         const cursor = editor.getCursor();
         let text = editor.getValue();
-        const handle=new MarkdownRefactoringHandle(text)
+        const handle=new MarkdownRefactoringHandle(text,this.settings)
         text = handle
                 .heading_to_heading_by_line(line+1,newDepth,modifyPeerHeadings)
-                .format_index({
-                    addHeadingIndexFrom:this.settings.addHeadingIndexFrom,
-                    listIndexHandleMethod:this.settings.listIndexHandleMethod
-                })
+                .format_index()
                 .stringify()
         editor.setValue(text);
         editor.setCursor(cursor);
-        new Notice("reflactor:列表转标题")
+        new Notice("Hierarchify:change heading depth")
     }
+
+    public cut_whole_block(markdownView:MarkdownView,line:number){
+        const editor = markdownView.editor;
+        const cursor = editor.getCursor();
+        let text = editor.getValue();
+        const handle=new MarkdownRefactoringHandle(text,this.settings)
+        clipboardy.write(handle.pop_a_block(line+1))
+        text=handle
+                .format_index()
+               .stringify()
+        editor.setValue(text);
+        editor.setCursor(cursor);
+        new Notice("Hierarchify:cut whole block")
+    }
+
 
     public async ensure_a_note(parentFolderAbFile:TFolder,name:string):Promise<TFile>{
         name=name+'.md'
@@ -177,14 +184,14 @@ export class CoreHandle{
     public async add_filetree_link_by_folder(folder:TFolder,grandParent:TFile|undefined=undefined){
         const folderNote=await this.ensure_a_note(folder,folder.name);
         if(grandParent instanceof TFile){
-            await this.addLinks(folderNote,grandParent);
+            await this.add_links_to_note_end(folderNote,grandParent);
         }
         for(const file of folder.children){
             if(file instanceof TFolder){
                 this.add_filetree_link_by_folder(file,folderNote)
             }
             else if(file instanceof TFile && file.name!==folderNote.name){
-                await this.addLinks(file,folderNote)
+                await this.add_links_to_note_end(file,folderNote)
             }
         }
     }
@@ -196,11 +203,11 @@ export class CoreHandle{
         }
         const folderNote=this.vault.getAbstractFileByPath(folder?.path+'/'+folder?.name+'.md')
         if(folderNote instanceof TFile){
-            await this.addLinks(file,folderNote)
+            await this.add_links_to_note_end(file,folderNote)
         }
     }
 
-    async addLinks(file:TFile,parent:TFile){
+    async add_links_to_note_end(file:TFile,parent:TFile){
         const link='[['+this.metaCache.fileToLinktext(parent,'')+'|'+parent.name.slice(0,-3)+']]\n'
         if(!(await this.vault.cachedRead(file)).includes(link)){
             await this.ensure_note_end(file,link)

@@ -235,7 +235,6 @@ export class MarkdownRefactoringHandle{
         if(seletedState===undefined){
             return new HeadingTextWithContent('','');
         }
-        const seletedDepth=seletedState.headingDepth
         if(!isHeading(seletedState.node)){
             return new HeadingTextWithContent('','');
         }
@@ -243,6 +242,7 @@ export class MarkdownRefactoringHandle{
             type:"root",
             children:[]
         }
+        const seletedDepth=seletedState.headingDepth
         for(let i=seletedState.nodeIndex+1;i<this.allNodes.length;i++){
             const thisNode=this.allNodes[i]
             if(isHeading(thisNode)){
@@ -254,6 +254,30 @@ export class MarkdownRefactoringHandle{
             newRoot.children.push(thisNode);
         }
         return new HeadingTextWithContent(get_heading_text(seletedState.node,false),this.stringify(newRoot))
+    }
+
+    public pop_a_block(line:number):string{
+        const seletedState=this.check_state_by_line(line);
+        if(seletedState===undefined){
+            return '';
+        }
+        const newRoot:Root={
+            type:"root",
+            children:[]
+        }
+        newRoot.children.push(seletedState.node);
+        this.allNodes.splice(seletedState.nodeIndex, 1);
+        if(isHeading(seletedState.node)){
+            while(seletedState.nodeIndex<this.allNodes.length){
+                const thisNode=this.allNodes[seletedState.nodeIndex]
+                if(isHeading(thisNode) && thisNode.depth<=seletedState.headingDepth){
+                    break;
+                }
+                newRoot.children.push(thisNode);
+                this.allNodes.splice(seletedState.nodeIndex, 1);
+            }
+        }
+        return this.stringify(newRoot)
     }
 
     public get_contents_of_peer_heading_by_line(line:number){

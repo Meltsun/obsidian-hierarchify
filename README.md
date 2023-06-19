@@ -42,22 +42,22 @@ An ideal solution would be to start with a Zettelkasten approach, taking atomic 
 
 Therefore, Hierarchify offers the following features to save you time on decision-making and note restructuring, allowing you to combine the benefits of both Zettelkasten and the file tree.
 
-## Features
+## Features 
 
 1.  Title-List Conversion:
-    -   Convert titles to lists.
-    -   Transform titles to different levels of hierarchy.
-    -   Convert lists back to titles.
-    -   Preserve the structure of selected titles or lists through recursive processing.
-    -   Choose to apply the changes to a specific title or all parallel titles.
-2.  TODO: Content Extraction:
-    -   Cut and extract the content of a title or a list, facilitating easy copying to another location.
+    -   Convert titles to lists or change its depth.
+        -   Choose to modify a specific title or all peer titles.
+    -   Convert lists to titles.
+    -   Through recursive processing, These action will preserve the structure of note .
+    -   Use these functions through the context menu of the editor at the title or list to be modified. If you want to modify the title, you can choose to only modify this title or modify all parallel titles. 
+2.  Cut Whole Block:
+    -   Cut the content of a whole block , such as  title and list, facilitating easy copying to another location.
 3.  Title-File Conversion:
     -   Extract a title and its content into a separate file, using the title as the file name.
-    -   Split notes into multiple notes based on titles, using the original note name as the folder name.
+    -   Split notes into notes based on titles, using the original note name as the folder name.
     -   TODO: Merge all notes within a folder into a single note.
     -   Adjust the title hierarchy appropriately when merging or splitting notes.
-4.  File Tree Linking:
+4.  File Tree Link:
     -   Create a note with the same name as a folder and add links to other notes within that folder.
     -   Recursively process all subfolders within the folder.
     -   This feature allows you to disperse notes across different folders while preserving the hierarchical relationships, effectively combining Zettelkasten and the file tree.
@@ -74,25 +74,22 @@ All of the above features are implemented based on mdast, converting Markdown to
 
 Certain behaviors of mdast differ from the default behavior of the Obsidian editor and my personal preferences, resulting in some inconsistencies.
 
-1.  Two spaces are added between the number and text in ordered list items.
-2.  Escape characters are added to all square brackets (which breaks wiki links).
-3.  TODO: Nested lists are not recognized as lists unless they start with 1.
-4.  TODO: Code blocks are not recognized as such if the language is not specified.
+1.  Two spaces are added between the number and text in ordered list items, instead of 1.
+2.  Escape characters are added to all square brackets (unexpectedly escapeing '\')
+3.  TODO: Nested ordered lists are not recognized as lists unless they start with 1.(unexpectedly escapeing '\')
+4.  TODO: Code blocks are not recognized as such if the language is not specified.(unexpectedly escapeing '\')
 
-To address the first two issues, I have made some modifications to the code and adjusted Obsidian settings accordingly:
-
-1.  Use space indentation.
-2.  Set the tab width to 4.
+Due to my limited ability, I currently do not know how to solve these problems using conventional methods. I made some modifications to the mdast code and adjusted Obsidian settings accordingly(Use space indentation, Set the tab width to 4.)to address the first two issues.
 
 However, extensive testing is still required, as there may be other issues. Currently, all refactoring features do not delete any note content.
 
-## Missing Configuration Options
+
+### Missing Configuration Options
 
 I plan to add more configuration options to define the plugin's behavior:
 
 1.  When converting titles to lists, choose whether to always create a new list (current behavior) or merge with an existing list.
 2.  Specify the location for generated files and folders when converting titles to notes, file tree linking, etc.
 
-## Future Enhancements
-
-Please refer to the TODO sections in the feature descriptions for upcoming improvements and features.
+### Future Enhancements
+refer to the TODO sections in the feature +-

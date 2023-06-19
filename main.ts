@@ -69,27 +69,37 @@ export default class myPlugin extends Plugin {
                 }
                 if(/^#+ .*/.test(lineString)){
                     console.log("在标题点击右键菜单：%d",cursor.line)
-                    if(/^#+ .*/.test(editor.getLine(cursor.line))){
-                        menu
-                            .addSeparator()
-                            .addItem((item) => {
-                                item
-                                    .setTitle("将此标题重构为...")
-                                    .setIcon("document")
-                                    .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,false))
-                            })
-                            .addItem((item) => {
-                                item
-                                    .setTitle("将所有同级别标题重构为...")
-                                    .setIcon("document")
-                                    .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,true))
-                            })
-                    }
+                    menu
+                        .addSeparator()
+                        .addItem((item) => {
+                            item
+                                .setTitle("剪切此标题下的所有内容")
+                                .setIcon("scissors")
+                                .onClick(()=>{this.handle.cut_whole_block(markdownView,cursor.line)})
+                        })
+                        .addItem((item) => {
+                            item
+                                .setTitle("将此标题重构为...")
+                                .setIcon("document")
+                                .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,false))
+                        })
+                        .addItem((item) => {
+                            item
+                                .setTitle("将所有同级别标题重构为...")
+                                .setIcon("document")
+                                .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,true))
+                        })
                 }
                 else if(/^(\t*|( {4})*)[0-9]+\. .*/.test(lineString)){
                     console.log("在标题点击右键菜单：%d",cursor.line)
                     menu
                         .addSeparator()
+                        .addItem((item) => {
+                            item
+                                .setTitle("剪切整个列表")
+                                .setIcon("scissors")
+                                .onClick(()=>{this.handle.cut_whole_block(markdownView,cursor.line)})
+                        })
                         .addItem((item) => {
                             item
                                 .setTitle("将此列表重构为...")
@@ -115,6 +125,16 @@ export default class myPlugin extends Plugin {
                                 
                                 });
                         });
+                }
+                else{
+                    menu
+                        .addSeparator()
+                        .addItem((item) => {
+                            item
+                                .setTitle("剪切整个块")
+                                .setIcon("scissors")
+                                .onClick(()=>{this.handle.cut_whole_block(markdownView,cursor.line)})
+                        })
                 }
             })
         );
@@ -161,7 +181,7 @@ export default class myPlugin extends Plugin {
                         item
                             .setTitle(`H${i}`)
                             .onClick(()=>{
-                                this.handle.heading_to_heading(markdownView,lineIndex,i,modifyPeerHeadings)
+                                this.handle.change_heading_depth(markdownView,lineIndex,i,modifyPeerHeadings)
                             })
                     })
                 }
