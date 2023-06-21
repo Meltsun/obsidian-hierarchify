@@ -139,20 +139,20 @@ export default class myPlugin extends Plugin {
             })
         );
 
+        //文件树右键菜单
         this.registerEvent(
-        this.app.workspace.on("file-menu", (menu, folder) => {
-                if(!(folder instanceof TFolder)){
-                    return
+            this.app.workspace.on("file-menu", (menu, abstractFile) => {
+                if(abstractFile instanceof TFolder){
+                    menu.addItem((item) => {
+                        item
+                            .setTitle("根据文件树添加链接")
+                            .setIcon("link")
+                            .onClick(async () => {
+                                console.log("在文件树点击右键菜单")
+                                this.handle.add_filetree_link_by_folder(abstractFile)
+                            });
+                    });
                 }
-                menu.addItem((item) => {
-                    item
-                        .setTitle("根据文件树添加链接")
-                        .setIcon("link")
-                        .onClick(async () => {
-                            console.log("在文件树点击右键菜单")
-                            this.handle.add_filetree_link_by_folder(folder)
-                        });
-                });
             })
         );
     }

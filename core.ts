@@ -176,11 +176,6 @@ export class CoreHandle{
             await this.ensure_note_end(newNote,noteInfo.content)
         }
     }
-
-    public folder_to_note(){
-        //TODO:
-    }
-
     public async add_filetree_link_by_folder(folder:TFolder,grandParent:TFile|undefined=undefined){
         const folderNote=await this.ensure_a_note(folder,folder.name);
         if(grandParent instanceof TFile){

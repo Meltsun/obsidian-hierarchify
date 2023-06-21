@@ -62,6 +62,11 @@ export class MarkdownRefactoringHandle{
                     addHeadingIndexFrom:7,
                     listIndexHandleMethod:'Disabled'
                 }){
+        markdownText=markdownText
+            //将嵌套的有序列表的第一个序号强制设置为1
+            .replace(/(?<=^([0-9]+\.|-|\*) .+\n(\t| {4})+)[0-9]+(?=\. .+)/m,'1')
+            //为代码块指定一个语言
+            .replace(/`{3,}(?=\n(.|\n)*`{3,}\n)/m,'```undefined')
         this.root = fromMarkdown(markdownText)
         this.allNodes = this.root.children;
     }

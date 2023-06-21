@@ -64,7 +64,7 @@ Therefore, Hierarchify offers the following features to save you time on decisio
     -   Recommended for use in conjunction with the Folder Note plugin.
 5.  Numbered Headings:
     -   Add sequential numbers to your headings, facilitating the conversion between ordered lists and titles.
-6.  TODO: Merge all notes linked to a specific note (or folder) into that note.
+6.  TODO: Merge all notes linked to a specific note (or folder) into that note.(seems not feasible)
 
 All of the above features are implemented based on mdast, converting Markdown to an Abstract Syntax Tree (AST), making necessary modifications, and converting it back to Markdown. This process essentially performs formatting operations.
 
@@ -76,10 +76,10 @@ Certain behaviors of mdast differ from the default behavior of the Obsidian edit
 
 1.  Two spaces are added between the number and text in ordered list items, instead of 1.
 2.  Escape characters are added to all square brackets (unexpectedly escapeing '\')
-3.  TODO: Nested ordered lists are not recognized as lists unless they start with 1.(unexpectedly escapeing '\')
-4.  TODO: Code blocks are not recognized as such if the language is not specified.(unexpectedly escapeing '\')
+3.  Nested ordered lists are not recognized as lists unless they start with 1.(unexpectedly escapeing '\')
+4.  Code blocks are not recognized as such if the language is not specified.(unexpectedly escapeing '\')
 
-Due to my limited ability, I currently do not know how to solve these problems using conventional methods. I made some modifications to the mdast code and adjusted Obsidian settings accordingly(Use space indentation, Set the tab width to 4.)to address the first two issues.
+Due to my limited ability, I currently do not know how to solve these problems using conventional methods. I made some modifications to the mdast code and adjusted Obsidian settings accordingly(Use space indentation, Set the tab width to 4.)to address the first two issues, and make some preprocessing on the note content to address the latter two.
 
 However, extensive testing is still required, as there may be other issues. Currently, all refactoring features do not delete any note content.
 
