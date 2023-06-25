@@ -1,27 +1,38 @@
-import {MarkdownView,Notice,TFile,TFolder,Vault,Workspace,MetadataCache} from "obsidian";
-import {MarkdownRefactoringSettings, MarkdownRefactoringHandle , HeadingDepth ,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
+import {MarkdownView,Notice,TFile,TFolder,Vault,MetadataCache} from "obsidian";
+
+import {MarkdownSettings, MarkdownRefactoringHandle , HeadingDepth ,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
+export type { HeadingDepth };
+import {LinkSettings} from "./LinkHandle"
+
 import escapeStringRegexp from 'escape-string-regexp';
 import clipboardy from "clipboardy";
-export type { HeadingDepth };
-export {listIndexHandleMethodList} from "MarkdownRefactoringHandle";
 
-interface AnotherSettings{
-    testSetting1:string;
+interface FileSettings{
+    createNewFilesInFixedPath:boolean
+    pathToFile:string
 }
 
-//设置项
-export interface MySettings extends MarkdownRefactoringSettings,AnotherSettings{}
+export interface MySettings extends MarkdownSettings,FileSettings,LinkSettings{}
 
 const MY_DEFAULT_SETTINGS: MySettings = {
-    testSetting1: 'test default setting',
-    listIndexHandleMethod:'Increase from 1',
-    addHeadingIndexFrom:1
+    //file
+    createNewFilesInFixedPath:false,//TODO:
+    pathToFile: '/',//TODO:
+
+    //list
+    alwaysCreateNewList:false,
+    forceOrderedListIndexStartFromOne:false,//TODO:
+
+    //heading
+    addHeadingIndexFrom:1, 
+    templateOfLinks:""//TODO:
 }
+//设置项
 
 export class CoreHandle{
     private settings:MySettings
     
-    constructor(private vault:Vault,private workspace:Workspace,private metaCache:MetadataCache){}
+    constructor(private vault:Vault,private metaCache:MetadataCache){}
 
     public set_settings(newSettings:Partial<MySettings>){
         this.settings=Object.assign({},MY_DEFAULT_SETTINGS,this.settings,newSettings)

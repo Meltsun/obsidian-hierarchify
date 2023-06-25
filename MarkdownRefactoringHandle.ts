@@ -6,11 +6,12 @@ import { decode } from "html-entities";
 
 export type HeadingDepth = 1 | 2 | 3 | 4 | 5 | 6;
 
-export const listIndexHandleMethodList=['Increase from 1','Increase from Any','Disabled'] as const;
+export const orderedListIndexHandleOptions=['Increase from 1','Increase from Any'] as const;
 
-export interface MarkdownRefactoringSettings{
-    listIndexHandleMethod:typeof listIndexHandleMethodList[number],
+export interface MarkdownSettings{
+    forceOrderedListIndexStartFromOne:boolean
     addHeadingIndexFrom:HeadingDepth|7
+    alwaysCreateNewList:boolean
 }
 
 function isHeadingDepth(depth: number): depth is HeadingDepth{
@@ -58,9 +59,10 @@ export class MarkdownRefactoringHandle{
     allNodes:Content[];
     root:Root;
     constructor(markdownText:string,
-                private settings:MarkdownRefactoringSettings={
+                private settings:MarkdownSettings={
                     addHeadingIndexFrom:7,
-                    listIndexHandleMethod:'Disabled'
+                    forceOrderedListIndexStartFromOne:false,
+                    alwaysCreateNewList:false
                 }){
         markdownText=markdownText
             //将嵌套的有序列表的第一个序号强制设置为1
@@ -162,7 +164,7 @@ export class MarkdownRefactoringHandle{
     //返回当前行的状态和所属的根的子节点
     public check_state_by_line(line:number){
         const headingIndexHandle = new HeadingIndexHandle(undefined,this.get_min_max_heading_depth()?.min);
-        const listIndexHandle = new ListIndexHandle('Disabled');
+        const listIndexHandle = new ListIndexHandle(false);
         for(let i=0;i<this.allNodes.length;i++){
             const node=this.allNodes[i];
             if(isHeading(node)){
@@ -201,10 +203,10 @@ export class MarkdownRefactoringHandle{
         return this;
     }
 
-    public format_index(options:Partial<MarkdownRefactoringSettings>={}){
+    public format_index(options:Partial<MarkdownSettings>={}){
         const {
-            addHeadingIndexFrom,//为#数量大于等于此值的标题添加序号
-            listIndexHandleMethod//列表序号的修改方法，直接使用设置里相应选项的字符串
+            addHeadingIndexFrom: addHeadingIndexFrom,//为#数量大于等于此值的标题添加序号
+            forceOrderedListIndexStartFromOne: listIndexHandleMethod//列表序号的修改方法，直接使用设置里相应选项的字符串
         }={...this.settings,...options};
         
         const headingIndexHandle = new HeadingIndexHandle(addHeadingIndexFrom,this.get_min_max_heading_depth()?.min);
@@ -408,9 +410,9 @@ class HeadingIndexHandle{
 class ListIndexHandle{
     listIndex=[0, 0, 0, 0, 0, 0, 0];
     listDepth=0;
-    constructor(private listIndexHandleMethod:string){}
+    constructor(private forceOrderedListIndexStartFromOne:boolean){}
     public update(listNode:List){
-        if(this.listIndexHandleMethod==='Increase from 1'){
+        if(this.forceOrderedListIndexStartFromOne){
             listNode.start=1;
         }
     }

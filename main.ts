@@ -1,7 +1,7 @@
 //添加交互接口，调用core
 import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu, TFolder} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
-import {CoreHandle,MySettings,HeadingDepth,listIndexHandleMethodList} from "./core";
+import {CoreHandle,MySettings,HeadingDepth} from "./core";
 
 export default class myPlugin extends Plugin {
     handle:CoreHandle
@@ -27,7 +27,7 @@ export default class myPlugin extends Plugin {
 
     //启动时加载
     async onload() {
-        this.handle=new CoreHandle(this.app.vault,this.app.workspace,this.app.metadataCache);
+        this.handle=new CoreHandle(this.app.vault,this.app.metadataCache);
         await this.load_settings();
         //设置里，添加标签页
         this.addSettingTab(new MySettingTab(this.app, this,this.handle));
@@ -217,51 +217,66 @@ class MySettingTab extends PluginSettingTab {
         super(app, plugin);
     }
     display(): void {
-        //获取标签页对应的容器
         const {containerEl} = this;
         containerEl.empty();
 
-        //添加设置项
         new Setting(containerEl)
-            .setName('name')
-            .setDesc('desc')
-            //.setTooltip('tooltip')
-            .addText(text => text
-                .setPlaceholder('place holder')
-                .setValue(this.plugin.get_settings().testSetting1)
-                .onChange(async (value) => {
-                    this.plugin.set_settings({testSetting1:value});
-                }));
+            .setName('Force the sequence table sequence number to start from 1')
+            .addToggle(component=>component
+                .setValue(this.plugin.get_settings().forceOrderedListIndexStartFromOne)
+                .onChange(async (value) => this.plugin.set_settings({forceOrderedListIndexStartFromOne:value}))
+            )
 
         new Setting(containerEl)
-            .setName('Format Ordered List Index')
+            .setName('Add index to headings that are')
             .addDropdown(Dropdown => Dropdown
                 .addOptions({
-                    'Increase from 1':'Increase from 1',
-                    'Increase from any':'Increase from any',
-                })
-                .setValue(this.plugin.get_settings().listIndexHandleMethod)
-                .onChange(async (value) => {
-                    this.plugin.set_settings({listIndexHandleMethod:value as typeof listIndexHandleMethodList[number]});                   
-                })
-            )
-                    
-        new Setting(containerEl)
-            .setName('Add index to titles ')
-            .addDropdown(Dropdown => Dropdown
-                .addOptions({
-                    7:'Disabled',
                     1:'All Levels',
                     2:'Level 2 and below',
                     3:'Level 3 and below',
                     4:'Level 4 and below',
                     5:'Level 5 and below',
                     6:'Level 6',
+                    7:'Disabled',
                 })
                 .setValue(String(this.plugin.get_settings().addHeadingIndexFrom))
                 .onChange(async (value) => {
                     this.plugin.set_settings({addHeadingIndexFrom:Number(value) as 7 | HeadingDepth})
                 })
             )
+
+        new Setting(containerEl)
+            .setName('When generate a list item, always create a new one')
+            .setDesc('If turned off, a list item will be merged into the previous list when possible')
+            .addToggle(component=>component
+                .setValue(this.plugin.get_settings().alwaysCreateNewList)
+                .onChange(async (value) => this.plugin.set_settings({alwaysCreateNewList:value}))
+            )
+
+        
+        new Setting(containerEl)
+            .setName('Create new files in a fixed location')
+            .setDesc('If turned off, the generated file will be located in the same directory as the selected file ')
+            .addToggle(component=>component
+                .setValue(this.plugin.get_settings().createNewFilesInFixedPath)
+                .onChange(async (value) => this.plugin.set_settings({createNewFilesInFixedPath:value}))
+            );
+            
+        new Setting(containerEl)
+            .setName('Path to generated file')
+            .setDesc('Only works whrn the previous option is turned on')
+            .addText(text => text
+                .setPlaceholder('path')
+                .setValue(this.plugin.get_settings().pathToFile)
+                .onChange(async (value) => this.plugin.set_settings({pathToFile:value})));
+
+        new Setting(containerEl)
+            .setName('Template used when add links to note end')
+            .setDesc('TODO:')
+            .addTextArea(component=>component
+                .setValue(this.plugin.get_settings().templateOfLinks)
+                .onChange(async (value) => this.plugin.set_settings({templateOfLinks:value}))
+            );
+
     }
 }
