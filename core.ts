@@ -7,7 +7,7 @@ import escapeStringRegexp from 'escape-string-regexp';
 import clipboardy from "clipboardy";
 
 interface FileSettings{
-    createNewFilesAtSpecifiedPath :boolean
+    createNewFilesAtFixedSettedPath :boolean
     newFilePath:string
 }
 
@@ -15,7 +15,7 @@ export interface MySettings extends MarkdownSettings,FileSettings{}
 
 const MY_DEFAULT_SETTINGS: MySettings = {
     //file
-    createNewFilesAtSpecifiedPath :false,
+    createNewFilesAtFixedSettedPath :false,
     newFilePath: '/',
 
     //list
@@ -115,18 +115,17 @@ export class CoreHandle{
     }
     public async ensure_a_note(parentFolderAbFile:TFolder,name:string,options:Partial<MySettings>={}):Promise<TFile>{
         const {
-            createNewFilesAtSpecifiedPath :createNewFilesAtSpecifiedPath,
-            newFilePath : newFilePath
+            createNewFilesAtFixedSettedPath: createNewFilesAtFixedPath,
+            newFilePath,
         }={...this.settings,...options};
         name=name+'.md'
         const folderPath=parentFolderAbFile.path
         let notePath = (
-            createNewFilesAtSpecifiedPath?
+            createNewFilesAtFixedPath?
                 newFilePath:
                 (parentFolderAbFile.isRoot()?'':folderPath+'/')
             )
             +name;
-        console.log(notePath)
         let noteFile = this.vault.getAbstractFileByPath(notePath);
         if(!(noteFile instanceof TFile)){
             if(!is_valid_windows_fileName(name)){
@@ -136,6 +135,7 @@ export class CoreHandle{
                     notePath = folderPath+'/'+"原文件标题不合法_"+illegalIndex+'.md'
                 }while(this.vault.getAbstractFileByPath(notePath) instanceof TFile)
             }
+            //console.log(notePath)
             noteFile=await this.vault.create(notePath,'');
         }
         return noteFile as TFile
@@ -143,7 +143,7 @@ export class CoreHandle{
 
     public async ensure_a_folder(parentFolderAbFile:TFolder,name:string,options:Partial<MarkdownSettings>={}):Promise<TFolder>{
         const {
-            createNewFilesAtSpecifiedPath :createNewFilesAtSpecifiedPath,
+            createNewFilesAtFixedSettedPath :createNewFilesAtSpecifiedPath,
             newFilePath : newFilePath
         }={...this.settings,...options};
         let folderPath = 
@@ -151,10 +151,7 @@ export class CoreHandle{
                 newFilePath:
                 (parentFolderAbFile.isRoot()?'':parentFolderAbFile.path)+'/')
             +name
-        console.log("0701 154")
         let folderAbFile = this.vault.getAbstractFileByPath(folderPath);
-        console.log(this.vault.getAbstractFileByPath('newFile/未命名'))
-        console.log(folderPath)
         if(!(folderAbFile instanceof TFolder)){
             if(!is_valid_windows_fileName(name)){
                 let illegalIndex=0;
@@ -163,21 +160,17 @@ export class CoreHandle{
                     illegalIndex++;
                 }while(this.vault.getAbstractFileByPath(folderPath) instanceof TFile)
             }
+            //console.log(folderPath)
             await this.vault.createFolder(folderPath);
             folderAbFile=this.vault.getAbstractFileByPath(folderPath)
         }
-        console.log("0701")
         return folderAbFile as TFolder
     }
 
-    public async ensure_folder_note(folder:TFolder){
-        return this.ensure_a_note(folder,folder.name)
-    }
-
-    public async ensure_note_end(note:TFile,end:string){
+    public async ensure_note_end(note:TFile,end:string,addDividerLine=true){
         const oldContent = await this.vault.read(note);
-        if(!new RegExp(`${escapeStringRegexp(end)}\\s*$`).test(oldContent)){
-            if(!/\n\n---+\s*$|^\s*$/.test(oldContent)){
+        if(!new RegExp(`${escapeStringRegexp(end.trimEnd())}\\s*$`).test(oldContent)){
+            if(addDividerLine && !/\n\n---+\s*$|^\s*$/.test(oldContent)){
                 end='\n\n---\n'+end
             }
             await this.vault.modify(note, oldContent+end);
@@ -195,31 +188,19 @@ export class CoreHandle{
             const notes=handle.get_contents_of_peer_heading_by_line(line+1);
             const folder = await this.ensure_a_folder(selectedNote.parent,markdownView.file.name.slice(0,-3))
             for(const noteInfo of notes){
-                const newNote = await this.ensure_a_note(folder,noteInfo.headingText,{createNewFilesAtSpecifiedPath:false})
-                await this.ensure_note_end(newNote,noteInfo.content)
+                const newNote = await this.ensure_a_note(folder,noteInfo.headingText,{createNewFilesAtFixedSettedPath:false})
+                this.ensure_note_end(newNote,noteInfo.content)
             }
         }
         else{
             const noteInfo=handle.get_content_of_a_heading_by_line(line+1);
             const newNote=await this.ensure_a_note(selectedNote.parent,noteInfo.headingText)
-            await this.ensure_note_end(newNote,noteInfo.content)
-        }
-    }
-    public async add_filetree_link_by_folder(folder:TFolder,grandParent:TFile|undefined=undefined){
-        const folderNote=await this.ensure_a_note(folder,folder.name);
-        if(grandParent instanceof TFile){
-            await this.add_links_to_note_end(folderNote,grandParent);
-        }
-        for(const file of folder.children){
-            if(file instanceof TFolder){
-                this.add_filetree_link_by_folder(file,folderNote)
-            }
-            else if(file instanceof TFile && file.name!==folderNote.name){
-                await this.add_links_to_note_end(file,folderNote)
-            }
+            this.ensure_note_end(newNote,noteInfo.content)
         }
     }
 
+    //暂未使用 
+    //TODO:
     public async add_filetree_link_by_file(file:TFile){
         const folder = file.parent;
         if(folder?.isRoot() && !(folder instanceof TFolder)){
@@ -227,16 +208,47 @@ export class CoreHandle{
         }
         const folderNote=this.vault.getAbstractFileByPath(folder?.path+'/'+folder?.name+'.md')
         if(folderNote instanceof TFile){
-            await this.add_links_to_note_end(file,folderNote)
+            this.ensure_end_links(file,folderNote)
         }
     }
 
-    async add_links_to_note_end(file:TFile,parent:TFile){
-        const link='[['+this.metaCache.fileToLinktext(parent,'')+'|'+parent.name.slice(0,-3)+']]\n'
-        if(!(await this.vault.cachedRead(file)).includes(link)){
-            await this.ensure_note_end(file,link)
+    public async ensure_folder_note(folder:TFolder){
+        return this.ensure_a_note(folder,folder.name,{createNewFilesAtFixedSettedPath:false})
+    }
+
+    public async add_filetree_link_by_folder(folder:TFolder,grandParent=undefined as TFile|undefined){
+        const folderNote=await this.ensure_folder_note(folder);
+        if(grandParent instanceof TFile){
+            this.ensure_end_links(folderNote,grandParent);
+        }
+        for(const file of folder.children){
+            //console.log(file.name,folderNote.name)
+            if(file instanceof TFolder){
+                this.add_filetree_link_by_folder(file,folderNote)
+            }
+            else if(file instanceof TFile && file.name!==folderNote.name){
+                this.ensure_end_links(file,folderNote)
+            }
         }
     }
 
-
+    async ensure_end_links(file:TFile,parent:TFile){
+        const thisLink='[['+this.metaCache.fileToLinktext(parent,'')+'|'+parent.name.slice(0,-3)+']]'
+        const content = await this.vault.cachedRead(file);
+        const seealsoMatch = content.match(/> \[!seealso\](\n> .*)*(\n>)?\s*$/)
+        if(seealsoMatch){
+            //console.log(`add[[ ${parent.name} ]] to ${file.name} AAA`)
+            let seealso = seealsoMatch[0].trim()
+            const links= /> \[!seealso\](?:\n> \s*(.*\S)\s*)*(?:\n>)?\s*$/.exec(seealso)?.slice(1)
+            console.log('AAA',links)
+            if(!links?.includes(thisLink)){
+                seealso=seealso.replace(/\n?>?\s*$/,'\n> '+thisLink+'  \n>  ')
+            }
+            await this.vault.modify(file, content.replace(/> \[!seealso\](\n> .*)*(\n>)?\s*$/,seealso));
+        }
+        else{
+            //console.log(`add[[ ${parent.name} ]] to ${file.name} BBB`)
+            await this.vault.modify(file, content+'\n\n> [!seealso]\n> '+thisLink+'  \n> ')
+        }
+    }
 }

@@ -265,8 +265,8 @@ class MySettingTab extends PluginSettingTab {
             .setName('Create new files in a fixed location')
             .setDesc('If turned off, the generated file will be located in the same directory as the selected file ')
             .addToggle(component=>component
-                .setValue(this.plugin.get_settings().createNewFilesAtSpecifiedPath )
-                .onChange(async (value) => this.plugin.set_settings({createNewFilesAtSpecifiedPath :value}))
+                .setValue(this.plugin.get_settings().createNewFilesAtFixedSettedPath )
+                .onChange(async (value) => this.plugin.set_settings({createNewFilesAtFixedSettedPath :value}))
             );
             
         new Setting(containerEl)
