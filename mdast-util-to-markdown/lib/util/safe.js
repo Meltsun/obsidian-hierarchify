@@ -111,7 +111,7 @@ export function safe(state, input, config) {
     }
 
     start = position
-    //TODO: 我修改了这一行
+    //我修改了这一行
     //不再转义[
     if (
       /[!-/:-@-`{-~]/.test(value.charAt(position)) &&

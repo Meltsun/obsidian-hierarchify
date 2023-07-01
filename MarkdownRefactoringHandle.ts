@@ -48,6 +48,16 @@ function get_heading_text(heading:Heading,isDeleteIndex=true){
     return ''
 }
 
+function make_ordered_list():List{
+    return {
+        type: 'list',
+        ordered: true,
+        start: 1,
+        spread: false,
+        children: []
+    }
+}
+
 export function is_valid_windows_fileName(fileName: string): boolean {
     // eslint-disable-next-line no-control-regex
     const regex = /^[^<>:"/\\|?*\x00-\x1F]*[^<>:"/\\|?*\x00-\x1F\s.]$/;
@@ -120,19 +130,19 @@ export class MarkdownRefactoringHandle{
         return this;
     }
 
-    public heading_to_list_by_line(line: number, modifyPeerHeadings=false ):this{
-        for(let i=0;i<this.allNodes.length;i++){
-            const node=this.allNodes[i]
-            if(isHeading(node) && node.position?.start.line === line){
-                this.heading_to_list(i,modifyPeerHeadings)
-                break;
-            }
+    public heading_to_list_by_line(line: number, modifyPeerHeadings=false,options:Partial<MarkdownSettings>={} ):this{
+        const {
+            alwaysCreateNewList:alwaysCreateNewList
+        }={...this.settings,...options};
+        const state = this.check_state_by_line(line)
+        if(state !=undefined && isHeading(state.node)){
+            this.heading_to_list(state.nodeIndex,modifyPeerHeadings,false,alwaysCreateNewList)
         }
         return this;
     }
 
-    private heading_to_list(headingIndex:number,modifyPeerHeadings:boolean,onlyModifyBelowPeerHeadings=false){
-        new heading_to_list_recursive_handle(headingIndex,this.allNodes,modifyPeerHeadings,onlyModifyBelowPeerHeadings)
+    private heading_to_list(headingIndex:number,modifyPeerHeadings:boolean,onlyModifyBelowPeerHeadings=false,alwaysCreateNewList=false){
+        new heading_to_list_recursive_handle(headingIndex,this.allNodes,alwaysCreateNewList,modifyPeerHeadings,onlyModifyBelowPeerHeadings)
     }
 
     //返回最低和最高等级结点
@@ -162,7 +172,7 @@ export class MarkdownRefactoringHandle{
     }
 
     //返回当前行的状态和所属的根的子节点
-    public check_state_by_line(line:number){
+    public check_state_by_line(line:number):LineState|undefined{
         const headingIndexHandle = new HeadingIndexHandle(undefined,this.get_min_max_heading_depth()?.min);
         const listIndexHandle = new ListIndexHandle(false);
         for(let i=0;i<this.allNodes.length;i++){
@@ -360,13 +370,22 @@ export class MarkdownRefactoringHandle{
     }
 }
 
+interface LineState{
+    headingIndex:number[]
+    headingDepth:HeadingDepth|0
+    listIndex:number[]
+    listDepth:number
+    node:Content
+    nodeIndex:number
+}
+
 class HeadingTextWithContent{
     constructor(public headingText:string,public content:string){}
 }
 
 class HeadingIndexHandle{
-    public headingIndex:(0|HeadingDepth)[]=[0, 0, 0, 0, 0, 0, 0];
-    headingDepth=0;
+    public headingIndex=[0, 0, 0, 0, 0, 0, 0];
+    headingDepth=0 as HeadingDepth|0;
     //undefined表示不改变标题
     constructor(private addHeadingIndexFrom:HeadingDepth|7|undefined=undefined,private minHeadingDepth:HeadingDepth|undefined=undefined){
     }
@@ -448,19 +467,19 @@ class ListIndexHandle{
 class heading_to_list_recursive_handle{
     tail:Content[]=[];
     deleteCount=0;
-    newlist:List={
-        type: 'list',
-        ordered: true,
-        start: 1,
-        spread: false,
-        children: []
-    }
-    constructor(headingIndex:number,private allNodes:Content[],modifyPeerHeadings=false,onlyModifyBelowPeerHeadings=false){
-        const selectedHeading=this.allNodes[headingIndex];
+    constructor(
+            headingNodeIndex:number,
+            private allNodes:Content[],
+            alwaysCreateNewList:boolean,
+            modifyPeerHeadings=false,
+            onlyModifyBelowPeerHeadings=false){
+        
+        console.log(alwaysCreateNewList)
+        const selectedHeading=allNodes[headingNodeIndex];
         if(!isHeading(selectedHeading)){return}
-        let firstHeadingIndex=headingIndex;
+        let firstHeadingIndex=headingNodeIndex;
         if(modifyPeerHeadings){
-            for(let j=headingIndex-1;!(onlyModifyBelowPeerHeadings) && j>=0;j--){
+            for(let j=headingNodeIndex-1;!(onlyModifyBelowPeerHeadings) && j>=0;j--){
                 const node = this.allNodes[j];
                 if(isHeading(node)){
                     if(node.depth===selectedHeading.depth){
@@ -471,11 +490,23 @@ class heading_to_list_recursive_handle{
                     }
                 }
             }
+            let parent = undefined;
+            if(!alwaysCreateNewList && firstHeadingIndex>0 ){
+                const lastNode = allNodes[firstHeadingIndex-1]
+                if(isList(lastNode)){
+                    parent=lastNode.children
+                }
+            }
+            if(parent===undefined){
+                const newlist = make_ordered_list();
+                parent = newlist.children;
+                this.tail.push(newlist)
+            }
             for(let j=firstHeadingIndex;j<this.allNodes.length;j++){
                 const node = this.allNodes[j];
                 if(isHeading(node)){
                     if(node.depth===selectedHeading.depth){
-                        this.heading_to_list_recursive(j,this.newlist.children);
+                        this.heading_to_list_recursive(j,parent);
                     }
                     else if(node.depth<selectedHeading.depth){
                         break;
@@ -484,9 +515,21 @@ class heading_to_list_recursive_handle{
             }
         }
         else{
-            this.heading_to_list_recursive(headingIndex,this.newlist.children);
+            let handled = false;
+            if(!alwaysCreateNewList && headingNodeIndex>0 ){
+                const lastNode = allNodes[headingNodeIndex-1]
+                if(isList(lastNode)){
+                    this.heading_to_list_recursive(firstHeadingIndex,lastNode.children);
+                    handled=true;
+                }
+            }
+            if(!handled){
+                const newlist = make_ordered_list();
+                this.tail.push(newlist);
+                this.heading_to_list_recursive(firstHeadingIndex,newlist.children);
+            }
         }
-        allNodes.splice(firstHeadingIndex,this.deleteCount,this.newlist,...this.tail)
+        allNodes.splice(firstHeadingIndex,this.deleteCount,...this.tail)
     }
 
     heading_to_list_recursive(index:number,parent:ListItem[]):number{
@@ -495,13 +538,7 @@ class heading_to_list_recursive_handle{
             return 0;
         }
         const headingText =  get_heading_text(lastHeading);
-        const newList:List={
-                type: 'list',
-                ordered: true,
-                start: 1,
-                spread: false,
-                children: []
-            };
+        const newList:List=make_ordered_list()
         parent.push({
             type: 'listItem',
             spread: false,
@@ -520,7 +557,6 @@ class heading_to_list_recursive_handle{
         parent=newList.children;
         this.deleteCount++;
         index++;
-        let listIndex = 1;
         for(;index<this.allNodes.length;index++){
             const thisNode = this.allNodes[index];
             if(isHeading(thisNode)){
@@ -542,23 +578,8 @@ class heading_to_list_recursive_handle{
                 this.deleteCount++;
             }
             else if(isList(thisNode)){
-                parent.push({
-                    type: 'listItem',
-                    spread: false,
-                    children: [
-                        {
-                            type: 'paragraph',
-                            children: [
-                                {
-                                    type:'text',
-                                    value: headingText+`-list${listIndex}`,
-                                }
-                            ]
-                        },
-                        thisNode
-                    ]});
+                parent.push(...thisNode.children);
                 this.deleteCount++;
-                listIndex++;
             }
             else{
                 this.tail.push(thisNode)

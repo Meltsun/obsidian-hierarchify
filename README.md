@@ -83,13 +83,5 @@ Due to my limited ability, I currently do not know how to solve these problems u
 
 However, extensive testing is still required, as there may be other issues. Currently, all refactoring features do not delete any note content.
 
-
-### Missing Configuration Options
-
-I plan to add more configuration options to define the plugin's behavior:
-
-1.  When converting titles to lists, choose whether to always create a new list (current behavior) or merge with an existing list.
-2.  Specify the location for generated files and folders when converting titles to notes, file tree linking, etc.
-
 ### Future Enhancements
 refer to the TODO sections in the feature +-

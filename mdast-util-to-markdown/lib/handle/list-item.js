@@ -59,7 +59,7 @@ export function listItem(node, parent, state, info) {
     if (index) {
       return (blank ? '' : ' '.repeat(size)) + line
     }
-    //TODO: 我修改了这一行
+    //我修改了这一行
     //避免添加多个空格
     //return (blank ? bullet : bullet + ' '.repeat(size - bullet.length)) + line
     return (blank ? bullet : bullet + ' '.repeat(size - bullet.length -1 )) + line

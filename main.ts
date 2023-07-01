@@ -13,7 +13,7 @@ export default class myPlugin extends Plugin {
 
     //保存设置和缺省项
     private async save_settings() {
-        await this.saveData(this.handle.get_settings);
+        await this.saveData(this.handle.get_settings());
     }
     
     public async set_settings(settings:Partial<MySettings>){
@@ -81,7 +81,14 @@ export default class myPlugin extends Plugin {
                             item
                                 .setTitle("将此标题重构为...")
                                 .setIcon("document")
-                                .onClick(this.make_heading_content_menuitem_callback(markdownView,cursor.line,lineString,false))
+                                .onClick(
+                                    this.make_heading_content_menuitem_callback(
+                                        markdownView,
+                                        cursor.line,
+                                        lineString,
+                                        false
+                                    )
+                                )
                         })
                         .addItem((item) => {
                             item
@@ -258,8 +265,8 @@ class MySettingTab extends PluginSettingTab {
             .setName('Create new files in a fixed location')
             .setDesc('If turned off, the generated file will be located in the same directory as the selected file ')
             .addToggle(component=>component
-                .setValue(this.plugin.get_settings().createNewFilesInFixedPath)
-                .onChange(async (value) => this.plugin.set_settings({createNewFilesInFixedPath:value}))
+                .setValue(this.plugin.get_settings().createNewFilesAtSpecifiedPath )
+                .onChange(async (value) => this.plugin.set_settings({createNewFilesAtSpecifiedPath :value}))
             );
             
         new Setting(containerEl)
@@ -267,16 +274,7 @@ class MySettingTab extends PluginSettingTab {
             .setDesc('Only works whrn the previous option is turned on')
             .addText(text => text
                 .setPlaceholder('path')
-                .setValue(this.plugin.get_settings().pathToFile)
-                .onChange(async (value) => this.plugin.set_settings({pathToFile:value})));
-
-        new Setting(containerEl)
-            .setName('Template used when add links to note end')
-            .setDesc('TODO:')
-            .addTextArea(component=>component
-                .setValue(this.plugin.get_settings().templateOfLinks)
-                .onChange(async (value) => this.plugin.set_settings({templateOfLinks:value}))
-            );
-
+                .setValue(this.plugin.get_settings().newFilePath)
+                .onChange(async (value) => this.plugin.set_settings({newFilePath:value})));
     }
 }

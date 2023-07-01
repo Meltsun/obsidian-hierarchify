@@ -2,30 +2,28 @@ import {MarkdownView,Notice,TFile,TFolder,Vault,MetadataCache} from "obsidian";
 
 import {MarkdownSettings, MarkdownRefactoringHandle , HeadingDepth ,is_valid_windows_fileName} from "MarkdownRefactoringHandle"
 export type { HeadingDepth };
-import {LinkSettings} from "./LinkHandle"
 
 import escapeStringRegexp from 'escape-string-regexp';
 import clipboardy from "clipboardy";
 
 interface FileSettings{
-    createNewFilesInFixedPath:boolean
-    pathToFile:string
+    createNewFilesAtSpecifiedPath :boolean
+    newFilePath:string
 }
 
-export interface MySettings extends MarkdownSettings,FileSettings,LinkSettings{}
+export interface MySettings extends MarkdownSettings,FileSettings{}
 
 const MY_DEFAULT_SETTINGS: MySettings = {
     //file
-    createNewFilesInFixedPath:false,//TODO:
-    pathToFile: '/',//TODO:
+    createNewFilesAtSpecifiedPath :false,
+    newFilePath: '/',
 
     //list
     alwaysCreateNewList:false,
-    forceOrderedListIndexStartFromOne:false,//TODO:
+    forceOrderedListIndexStartFromOne:false,
 
     //heading
     addHeadingIndexFrom:1, 
-    templateOfLinks:""//TODO:
 }
 //设置项
 
@@ -109,21 +107,29 @@ export class CoreHandle{
         const handle=new MarkdownRefactoringHandle(text,this.settings)
         clipboardy.write(handle.pop_a_block(line+1))
         text=handle
-                .format_index()
-               .stringify()
+            .format_index()
+            .stringify()
         editor.setValue(text);
         editor.setCursor(cursor);
         new Notice("Hierarchify:cut whole block")
     }
-
-
-    public async ensure_a_note(parentFolderAbFile:TFolder,name:string):Promise<TFile>{
+    public async ensure_a_note(parentFolderAbFile:TFolder,name:string,options:Partial<MySettings>={}):Promise<TFile>{
+        const {
+            createNewFilesAtSpecifiedPath :createNewFilesAtSpecifiedPath,
+            newFilePath : newFilePath
+        }={...this.settings,...options};
         name=name+'.md'
         const folderPath=parentFolderAbFile.path
-        let notePath = (parentFolderAbFile.isRoot()?'':folderPath+'/')+name;
+        let notePath = (
+            createNewFilesAtSpecifiedPath?
+                newFilePath:
+                (parentFolderAbFile.isRoot()?'':folderPath+'/')
+            )
+            +name;
+        console.log(notePath)
         let noteFile = this.vault.getAbstractFileByPath(notePath);
         if(!(noteFile instanceof TFile)){
-            if(!is_valid_windows_fileName(name+'.md')){
+            if(!is_valid_windows_fileName(name)){
                 let illegalIndex=-1;
                 do{
                     illegalIndex++;
@@ -135,9 +141,20 @@ export class CoreHandle{
         return noteFile as TFile
     }
 
-    public async ensure_a_folder(parentFolderAbFile:TFolder,name:string):Promise<TFolder>{
-        let folderPath = (parentFolderAbFile.isRoot()?'':parentFolderAbFile.path+'/')+name
+    public async ensure_a_folder(parentFolderAbFile:TFolder,name:string,options:Partial<MarkdownSettings>={}):Promise<TFolder>{
+        const {
+            createNewFilesAtSpecifiedPath :createNewFilesAtSpecifiedPath,
+            newFilePath : newFilePath
+        }={...this.settings,...options};
+        let folderPath = 
+            (createNewFilesAtSpecifiedPath?
+                newFilePath:
+                (parentFolderAbFile.isRoot()?'':parentFolderAbFile.path)+'/')
+            +name
+        console.log("0701 154")
         let folderAbFile = this.vault.getAbstractFileByPath(folderPath);
+        console.log(this.vault.getAbstractFileByPath('newFile/未命名'))
+        console.log(folderPath)
         if(!(folderAbFile instanceof TFolder)){
             if(!is_valid_windows_fileName(name)){
                 let illegalIndex=0;
@@ -149,6 +166,7 @@ export class CoreHandle{
             await this.vault.createFolder(folderPath);
             folderAbFile=this.vault.getAbstractFileByPath(folderPath)
         }
+        console.log("0701")
         return folderAbFile as TFolder
     }
 
@@ -177,7 +195,7 @@ export class CoreHandle{
             const notes=handle.get_contents_of_peer_heading_by_line(line+1);
             const folder = await this.ensure_a_folder(selectedNote.parent,markdownView.file.name.slice(0,-3))
             for(const noteInfo of notes){
-                const newNote = await this.ensure_a_note(folder,noteInfo.headingText)
+                const newNote = await this.ensure_a_note(folder,noteInfo.headingText,{createNewFilesAtSpecifiedPath:false})
                 await this.ensure_note_end(newNote,noteInfo.content)
             }
         }
