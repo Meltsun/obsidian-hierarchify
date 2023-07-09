@@ -123,8 +123,9 @@ export class CoreHandle{
         let notePath = (
             createNewFilesAtFixedPath?
                 newFilePath:
-                (parentFolderAbFile.isRoot()?'':folderPath+'/')
+                (parentFolderAbFile.isRoot()?'':folderPath)
             )
+            +'/'
             +name;
         let noteFile = this.vault.getAbstractFileByPath(notePath);
         if(!(noteFile instanceof TFile)){
@@ -149,7 +150,9 @@ export class CoreHandle{
         let folderPath = 
             (createNewFilesAtSpecifiedPath?
                 newFilePath:
-                (parentFolderAbFile.isRoot()?'':parentFolderAbFile.path)+'/')
+                (parentFolderAbFile.isRoot()?'':parentFolderAbFile.path)
+            )
+            +'/'
             +name
         let folderAbFile = this.vault.getAbstractFileByPath(folderPath);
         if(!(folderAbFile instanceof TFolder)){

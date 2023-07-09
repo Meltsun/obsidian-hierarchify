@@ -1,5 +1,5 @@
 //添加交互接口，调用core
-import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu, TFolder} from "obsidian";
+import { Plugin, MarkdownView,App,PluginSettingTab,Setting,Menu, TFolder ,Notice} from "obsidian";
 //import { MarkdownIndex } from "./indexFormatter_old";
 import {CoreHandle,MySettings,HeadingDepth} from "./core";
 
@@ -18,7 +18,8 @@ export default class myPlugin extends Plugin {
     
     public async set_settings(settings:Partial<MySettings>){
         this.handle.set_settings(settings);
-        await this.save_settings();
+        this.save_settings();
+        new Notice("Hierarchify:设置已更新")
     }
 
     public get_settings(){
@@ -270,11 +271,19 @@ class MySettingTab extends PluginSettingTab {
             );
             
         new Setting(containerEl)
-            .setName('Path to generated file')
-            .setDesc('Only works whrn the previous option is turned on')
+            .setName('Path to create new files')
+            .setDesc('Only works when the previous option is turned on')
             .addText(text => text
                 .setPlaceholder('path')
                 .setValue(this.plugin.get_settings().newFilePath)
-                .onChange(async (value) => this.plugin.set_settings({newFilePath:value})));
+                .onChange(async (value) => {
+                    const folderAbFile = this.app.vault.getAbstractFileByPath(value);
+                    if(folderAbFile instanceof TFolder){
+                        this.plugin.set_settings({newFilePath:value})
+                    }
+                    else{
+                        new Notice("路径不合法。请输入目标文件夹的路径")
+                    }
+                }));
     }
 }
